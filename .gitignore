@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env.local
+.env.production
+*.log
+.DS_Store
+
+# Backend dependencies and credentials
+backend/.venv/
+backend/.env
+**/__pycache__/
+*.pyc
+
+# Local database
+*.db
