@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, Marker, Popup, GeoJSON } from 'react-leaflet';
 import MarkerClusterGroup from '@changey/react-leaflet-markercluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -124,26 +124,80 @@ function MapEvents() {
   return null;
 }
 
+const normalizeStateName = (name: string): string => {
+  return name.replace('&', 'and').trim();
+};
+
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function IndiaMap() {
-  // Use a ref to the wrapper div so we can manually clear stale Leaflet state
   const wrapperRef = useRef<HTMLDivElement>(null);
-  // Render the map only after mount to guarantee a clean DOM node
   const [ready, setReady] = useState(false);
+  const [geoJsonData, setGeoJsonData] = useState<any>(null);
+  
+  const { filters, setFilters } = useNewsStore();
 
   useEffect(() => {
     if (wrapperRef.current) {
-      // Clear any stale _leaflet_id left by a previous render / HMR cycle
       const el = wrapperRef.current as HTMLElement & { _leaflet_id?: number };
       delete el._leaflet_id;
     }
     setReady(true);
 
-    // On unmount, destroy any running Leaflet instance attached to the node
+    // Load GeoJSON data
+    fetch('/india-states.geojson')
+      .then((res) => res.json())
+      .then((data) => setGeoJsonData(data))
+      .catch((err) => console.error('Error loading GeoJSON:', err));
+
     return () => {
       setReady(false);
     };
   }, []);
+
+  const getFeatureStyle = (feature: any) => {
+    const stateName = normalizeStateName(feature.properties.ST_NM);
+    const isSelected = filters.state === stateName;
+
+    return {
+      fillColor: isSelected ? '#fb923c' : '#ffffff',
+      fillOpacity: isSelected ? 0.22 : 0.02,
+      color: isSelected ? '#fb923c' : 'rgba(255, 255, 255, 0.15)',
+      weight: isSelected ? 2 : 1.2,
+    };
+  };
+
+  const onEachFeature = (feature: any, layer: any) => {
+    const stateName = normalizeStateName(feature.properties.ST_NM);
+
+    layer.bindTooltip(stateName, {
+      sticky: true,
+      className: 'custom-map-tooltip',
+    });
+
+    layer.on({
+      mouseover: (e: any) => {
+        const l = e.target;
+        l.setStyle({
+          fillColor: '#fb923c',
+          fillOpacity: 0.18,
+          color: '#fb923c',
+          weight: 2,
+        });
+      },
+      mouseout: (e: any) => {
+        const l = e.target;
+        l.setStyle(getFeatureStyle(feature));
+      },
+      click: () => {
+        const currentState = useNewsStore.getState().filters.state;
+        if (currentState === stateName) {
+          setFilters({ state: undefined });
+        } else {
+          setFilters({ state: stateName as any });
+        }
+      },
+    });
+  };
 
   return (
     <div ref={wrapperRef} style={{ height: '100%', width: '100%' }}>
@@ -162,6 +216,14 @@ export default function IndiaMap() {
             attribution={DARK_TILES_ATTR}
             subdomains="abcd"
           />
+          {geoJsonData && (
+            <GeoJSON
+              key={filters.state || 'none'}
+              data={geoJsonData}
+              style={getFeatureStyle}
+              onEachFeature={onEachFeature}
+            />
+          )}
           <MapEvents />
           <NewsMarkers />
         </MapContainer>

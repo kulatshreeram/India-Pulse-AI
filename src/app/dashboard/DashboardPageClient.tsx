@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { NewsPanel } from '@/components/news/NewsPanel';
+import { StateNewsPanel } from '@/components/news/StateNewsPanel';
 import { BreakingNewsTicker } from '@/components/layout/BreakingNewsTicker';
 import { MapControls } from '@/components/map/MapControls';
 import { SearchBar } from '@/components/map/SearchBar';
@@ -94,6 +95,7 @@ function DashboardPageInner() {
       </div>
       <BreakingNewsTicker />
       <NewsPanel />
+      <StateNewsPanel />
     </div>
   );
 }
