@@ -10,7 +10,7 @@ import 'leaflet-defaulticon-compatibility';
 import '@changey/react-leaflet-markercluster/dist/styles.min.css';
 
 import { useNewsStore } from '@/store/newsStore';
-import { useNews } from '@/hooks/useNews';
+import { useNews, useStates } from '@/hooks/useNews';
 import { CATEGORY_COLORS } from '@/lib/mock-data';
 import type { NewsArticle } from '@/types';
 
@@ -134,7 +134,13 @@ export default function IndiaMap() {
   const [ready, setReady] = useState(false);
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   
-  const { filters, setFilters } = useNewsStore();
+  const { filters, setFilters, isHeatmapMode } = useNewsStore();
+  const { data: statesList } = useStates();
+
+  const stateCounts = statesList?.reduce((acc: Record<string, number>, s) => {
+    acc[s.name] = s.newsCount;
+    return acc;
+  }, {}) ?? {};
 
   useEffect(() => {
     if (wrapperRef.current) {
@@ -157,6 +163,33 @@ export default function IndiaMap() {
   const getFeatureStyle = (feature: any) => {
     const stateName = normalizeStateName(feature.properties.ST_NM);
     const isSelected = filters.state === stateName;
+    const count = stateCounts[stateName] ?? 0;
+
+    if (isHeatmapMode) {
+      let color = '#3b82f6'; // Low (blue)
+      let opacity = 0.08;
+      
+      if (count > 15) {
+        color = '#ef4444'; // Very High (red)
+        opacity = 0.45;
+      } else if (count > 8) {
+        color = '#f97316'; // High (orange)
+        opacity = 0.35;
+      } else if (count > 3) {
+        color = '#eab308'; // Medium (yellow)
+        opacity = 0.25;
+      } else if (count > 0) {
+        color = '#10b981'; // Low-medium (green)
+        opacity = 0.15;
+      }
+
+      return {
+        fillColor: color,
+        fillOpacity: isSelected ? opacity + 0.15 : opacity,
+        color: isSelected ? '#fb923c' : 'rgba(255, 255, 255, 0.15)',
+        weight: isSelected ? 2 : 1.2,
+      };
+    }
 
     return {
       fillColor: isSelected ? '#fb923c' : '#ffffff',
@@ -168,8 +201,9 @@ export default function IndiaMap() {
 
   const onEachFeature = (feature: any, layer: any) => {
     const stateName = normalizeStateName(feature.properties.ST_NM);
+    const count = stateCounts[stateName] ?? 0;
 
-    layer.bindTooltip(stateName, {
+    layer.bindTooltip(`${stateName} (${count})`, {
       sticky: true,
       className: 'custom-map-tooltip',
     });
@@ -218,7 +252,7 @@ export default function IndiaMap() {
           />
           {geoJsonData && (
             <GeoJSON
-              key={filters.state || 'none'}
+              key={`${filters.state || 'none'}-${isHeatmapMode ? 'heatmap' : 'normal'}-${statesList ? 'ready' : 'notready'}-${Object.keys(stateCounts).length}`}
               data={geoJsonData}
               style={getFeatureStyle}
               onEachFeature={onEachFeature}

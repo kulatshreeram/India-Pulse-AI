@@ -48,11 +48,14 @@ export function NewsCard({ article, onClick, compact = false, index = 0 }: NewsC
       )}
 
       {/* Meta */}
-      <div className="flex items-center gap-2 mb-2">
-        <CategoryBadge category={article.category} showIcon={!compact} />
-        {compact && article.isBreaking && (
-          <span className="breaking-badge">⚡</span>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <CategoryBadge category={article.category} showIcon={!compact} />
+          {compact && article.isBreaking && (
+            <span className="breaking-badge">⚡</span>
+          )}
+        </div>
+        <span className="text-xs font-semibold text-saffron-400/90">{article.source.name}</span>
       </div>
 
       {/* Title */}
@@ -92,6 +95,14 @@ export function NewsCard({ article, onClick, compact = false, index = 0 }: NewsC
           </button>
         </div>
       </div>
+
+      {/* Read More button */}
+      {!compact && (
+        <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2 text-xs font-semibold text-saffron-400/90">
+          <span>Read Story</span>
+          <span className="transform transition-transform group-hover:translate-x-1">→</span>
+        </div>
+      )}
     </motion.div>
   );
 }

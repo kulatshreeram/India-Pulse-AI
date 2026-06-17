@@ -52,6 +52,7 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="theme-color" content="#020617" />
       </head>
       <body className={`${inter.variable} font-sans bg-slate-950 text-slate-100 antialiased`}>

@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, MapPin, Newspaper } from 'lucide-react';
 import { useNewsStore } from '@/store/newsStore';
-import { MOCK_ARTICLES } from '@/lib/mock-data';
-import { INDIA_STATES } from '@/lib/india-states';
+import { useSearch } from '@/hooks/useNews';
 import { truncate } from '@/lib/utils';
 
 export function SearchBar() {
@@ -14,20 +13,9 @@ export function SearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { setFilters, setSelectedArticle } = useNewsStore();
 
-  const articleResults = query.length > 1
-    ? MOCK_ARTICLES.filter(
-        (a) =>
-          a.title.toLowerCase().includes(query.toLowerCase()) ||
-          a.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()))
-      ).slice(0, 4)
-    : [];
-
-  const stateResults = query.length > 1
-    ? INDIA_STATES.filter((s) =>
-        s.name.toLowerCase().includes(query.toLowerCase()) ||
-        s.capital.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 3)
-    : [];
+  const { data } = useSearch(query);
+  const articleResults = (data?.articles ?? []).slice(0, 4);
+  const stateResults = (data?.states ?? []).slice(0, 3);
 
   const hasResults = articleResults.length > 0 || stateResults.length > 0;
 

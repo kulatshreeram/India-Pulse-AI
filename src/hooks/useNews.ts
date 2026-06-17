@@ -93,3 +93,34 @@ export function useBreakingNews() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+export function useStates() {
+  return useQuery<any[]>({
+    queryKey: ['states'],
+    queryFn: async () => {
+      const res = await fetch('/api/states');
+      if (!res.ok) {
+        throw new Error('Failed to fetch states');
+      }
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useSearch(query: string) {
+  return useQuery<{ articles: NewsArticle[]; states: any[] }>({
+    queryKey: ['search', query],
+    queryFn: async () => {
+      if (!query || query.length <= 1) return { articles: [], states: [] };
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch search results');
+      }
+      return res.json();
+    },
+    enabled: query.length > 1,
+    staleTime: 30 * 1000,
+  });
+}
+
