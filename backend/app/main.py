@@ -8,7 +8,7 @@ load_dotenv()
 
 # We need to make sure the db tables are created and seeded on startup
 from backend.app.database.connection import engine, Base, SessionLocal
-from backend.app.routes import news, states, search
+from backend.app.routes import news, states, search, chat
 from backend.app.services.news_service import seed_db_if_empty
 
 # Create database tables
@@ -36,6 +36,7 @@ app.add_middleware(
 app.include_router(news.router, prefix="/api/news", tags=["News"])
 app.include_router(states.router, prefix="/api/states", tags=["States"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 
 @app.get("/")
 def read_root():

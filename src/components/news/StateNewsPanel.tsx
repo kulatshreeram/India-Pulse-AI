@@ -1,16 +1,22 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Radio } from 'lucide-react';
+import { X, MapPin, Radio, Sparkles } from 'lucide-react';
 import { useNewsStore } from '@/store/newsStore';
-import { useNews } from '@/hooks/useNews';
+import { useNews, useStateSummary } from '@/hooks/useNews';
 import { NewsCard } from '@/components/news/NewsCard';
 import { getStateByName } from '@/lib/india-states';
-import { SkeletonCard } from '@/components/ui/Skeleton';
+import { SkeletonCard, Skeleton } from '@/components/ui/Skeleton';
 
 export function StateNewsPanel() {
   const { filters, setFilters, setSelectedArticle } = useNewsStore();
   const stateName = filters.state;
+  const [viewMode, setViewMode] = useState<'feed' | 'summary'>('feed');
+
+  useEffect(() => {
+    setViewMode('feed');
+  }, [stateName]);
 
   const close = () => {
     setFilters({ state: undefined });
@@ -19,6 +25,10 @@ export function StateNewsPanel() {
   const { data, isLoading } = useNews({ state: stateName });
   const articles = data?.articles ?? [];
   const stateInfo = stateName ? getStateByName(stateName) : undefined;
+
+  const { data: summaryData, isLoading: isSummaryLoading, error: summaryError } = useStateSummary(
+    viewMode === 'summary' ? stateName : undefined
+  );
 
   return (
     <AnimatePresence>
@@ -83,7 +93,7 @@ export function StateNewsPanel() {
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-2 gap-3 text-xs mb-3">
                     <div>
                       <p className="text-slate-500 mb-0.5 font-medium">Capital</p>
                       <p className="font-semibold text-slate-200">{stateInfo.capital}</p>
@@ -95,44 +105,102 @@ export function StateNewsPanel() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Generate Summary Button */}
+                  {viewMode === 'feed' && articles.length > 0 && (
+                    <button
+                      onClick={() => setViewMode('summary')}
+                      className="w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-white hover:opacity-90 active:scale-[0.98]"
+                      style={{
+                        background: 'linear-gradient(135deg, #fb923c, #f97316)',
+                        boxShadow: '0 4px 12px rgba(251, 146, 60, 0.2)',
+                      }}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Generate State Summary
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* Feed Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  <Radio className="w-3.5 h-3.5 text-saffron-400" />
-                  <span>State Feed ({articles.length})</span>
-                </div>
-              </div>
-
-              {/* News cards list */}
-              <div className="space-y-3 pb-8">
-                {isLoading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <SkeletonCard key={i} />
-                  ))
-                ) : articles.length > 0 ? (
-                  articles.map((article, i) => (
-                    <NewsCard
-                      key={article.id}
-                      article={article}
-                      compact={true}
-                      index={i}
-                      onClick={() => setSelectedArticle(article)}
-                    />
-                  ))
-                ) : (
-                  <div className="p-8 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-                    <p className="text-slate-400 text-sm font-medium mb-1">
-                      No News Found
-                    </p>
-                    <p className="text-slate-600 text-xs leading-normal">
-                      No recent news available for this state.
-                    </p>
+              {/* Summary view */}
+              {viewMode === 'summary' ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5 text-saffron-400" />
+                      <span>AI State Summary</span>
+                    </div>
+                    <button
+                      onClick={() => setViewMode('feed')}
+                      className="text-xs text-saffron-400 hover:text-saffron-300 font-semibold flex items-center gap-1"
+                    >
+                      ← Back to Feed
+                    </button>
                   </div>
-                )}
-              </div>
+
+                  {isSummaryLoading ? (
+                    <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/06">
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-4 w-full rounded" />
+                      <Skeleton className="h-4 w-5/6 rounded" />
+                      <Skeleton className="h-4 w-2/3 rounded" />
+                    </div>
+                  ) : summaryError ? (
+                    <div className="p-4 text-center rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                      Failed to generate summary. Please try again.
+                    </div>
+                  ) : (
+                    <div
+                      className="rounded-xl p-4 text-sm text-slate-300 leading-relaxed space-y-3 whitespace-pre-line"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(251,146,60,0.06), rgba(59,130,246,0.06))',
+                        border: '1px solid rgba(251,146,60,0.2)',
+                      }}
+                    >
+                      {summaryData?.summary_text}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Feed Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <Radio className="w-3.5 h-3.5 text-saffron-400" />
+                      <span>State Feed ({articles.length})</span>
+                    </div>
+                  </div>
+
+                  {/* News cards list */}
+                  <div className="space-y-3 pb-8">
+                    {isLoading ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <SkeletonCard key={i} />
+                      ))
+                    ) : articles.length > 0 ? (
+                      articles.map((article, i) => (
+                        <NewsCard
+                          key={article.id}
+                          article={article}
+                          compact={true}
+                          index={i}
+                          onClick={() => setSelectedArticle(article)}
+                        />
+                      ))
+                    ) : (
+                      <div className="p-8 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
+                        <p className="text-slate-400 text-sm font-medium mb-1">
+                          No News Found
+                        </p>
+                        <p className="text-slate-600 text-xs leading-normal">
+                          No recent news available for this state.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </motion.aside>
         </>

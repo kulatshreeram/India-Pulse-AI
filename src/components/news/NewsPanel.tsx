@@ -13,12 +13,15 @@ import { ImpactScoreDisplay } from '@/components/ui/ImpactScore';
 import { SkeletonPanel } from '@/components/ui/Skeleton';
 import { formatDate, truncate } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
+import { useArticleSummary } from '@/hooks/useNews';
 import { MOCK_ARTICLES } from '@/lib/mock-data';
 import type { NewsArticle } from '@/types';
 
 export function NewsPanel() {
   const { selectedArticle, isPanelOpen, setIsPanelOpen, setSelectedArticle, toggleBookmark, isBookmarked } =
     useNewsStore();
+
+  const { data: summaryData, isLoading: isSummaryLoading } = useArticleSummary(selectedArticle?.id);
 
   const close = () => {
     setIsPanelOpen(false);
@@ -166,25 +169,31 @@ export function NewsPanel() {
               </div>
 
               {/* AI Summary */}
-              {selectedArticle.aiSummary && (
-                <div
-                  className="rounded-xl p-4"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(251,146,60,0.06), rgba(59,130,246,0.06))',
-                    border: '1px solid rgba(251,146,60,0.2)',
-                  }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-saffron-400 to-orange-600 flex items-center justify-center">
-                      <Sparkles className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    <p className="text-xs font-semibold text-saffron-400 uppercase tracking-wide">AI Summary</p>
+              <div
+                className="rounded-xl p-4"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(251,146,60,0.06), rgba(59,130,246,0.06))',
+                  border: '1px solid rgba(251,146,60,0.2)',
+                }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-saffron-400 to-orange-600 flex items-center justify-center">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <p className="text-sm text-slate-300 leading-relaxed">
-                    {selectedArticle.aiSummary}
-                  </p>
+                  <p className="text-xs font-semibold text-saffron-400 uppercase tracking-wide">AI Summary</p>
                 </div>
-              )}
+                {isSummaryLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-3 w-3/4 bg-white/10 rounded animate-pulse" />
+                    <div className="h-3 w-full bg-white/10 rounded animate-pulse" />
+                    <div className="h-3 w-2/3 bg-white/10 rounded animate-pulse" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                    {summaryData?.summary_text || selectedArticle.aiSummary || 'Summary not available.'}
+                  </p>
+                )}
+              </div>
 
               {/* Full Summary */}
               <div>

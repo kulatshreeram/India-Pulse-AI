@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NewsFilter, NewsResponse, NewsArticle } from '@/types';
 import { MOCK_ARTICLES } from '@/lib/mock-data';
 
@@ -121,6 +121,78 @@ export function useSearch(query: string) {
     },
     enabled: query.length > 1,
     staleTime: 30 * 1000,
+  });
+}
+
+export function useArticleSummary(articleId: string | undefined) {
+  return useQuery<{ article_id: string; summary_text: string; generated_at: string }>({
+    queryKey: ['article-summary', articleId],
+    queryFn: async () => {
+      if (!articleId) throw new Error('No article ID provided');
+      const res = await fetch(`/api/news/${articleId}/summarize`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch article summary');
+      }
+      return res.json();
+    },
+    enabled: !!articleId,
+    staleTime: 24 * 60 * 60 * 1000, // Cache for 24 hours
+  });
+}
+
+export function useStateSummary(stateName: string | undefined) {
+  return useQuery<{ state_name: string; summary_text: string; generated_at: string }>({
+    queryKey: ['state-summary', stateName],
+    queryFn: async () => {
+      if (!stateName) throw new Error('No state name provided');
+      const res = await fetch(`/api/states/${encodeURIComponent(stateName)}/summarize`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch state summary');
+      }
+      return res.json();
+    },
+    enabled: !!stateName,
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
+  });
+}
+
+export function useChatHistory() {
+  return useQuery<any[]>({
+    queryKey: ['chat-history'],
+    queryFn: async () => {
+      const res = await fetch('/api/chat/history');
+      if (!res.ok) {
+        throw new Error('Failed to fetch chat history');
+      }
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useChatMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { question: string; state?: string }) => {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to send chat message');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-history'] });
+    },
   });
 }
 

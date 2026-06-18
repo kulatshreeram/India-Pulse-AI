@@ -44,3 +44,26 @@ class Article(Base):
     view_count = Column(Integer, default=0)
     
     fetched_at = Column(DateTime, default=datetime.utcnow)
+
+class ArticleSummary(Base):
+    __tablename__ = "article_summaries"
+
+    article_id = Column(String, primary_key=True, index=True)
+    summary_text = Column(String, nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+
+class StateSummary(Base):
+    __tablename__ = "state_summaries"
+
+    state_name = Column(String, primary_key=True, index=True)
+    summary_text = Column(String, nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+
+class ChatMessageLog(Base):
+    __tablename__ = "chat_history"
+
+    id = Column(String, primary_key=True, index=True)
+    question = Column(String, nullable=False)
+    answer = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    sources_json = Column(String)  # JSON-serialized list of sources (name, url)

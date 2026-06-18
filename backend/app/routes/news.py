@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from backend.app.database.connection import get_db
-from backend.app.models.news import Article
-from backend.app.schemas.news import NewsArticleSchema, article_db_to_schema
-from backend.app.services import news_service
+from backend.app.models.news import Article, ArticleSummary
+from backend.app.schemas.news import NewsArticleSchema, article_db_to_schema, ArticleSummarySchema
+from backend.app.services import news_service, ai_summary
 
 router = APIRouter()
 
@@ -59,3 +59,30 @@ async def refresh_news(
         "status": "ok",
         "fetchedCount": len(new_articles)
     }
+
+@router.post("/{article_id}/summarize", response_model=ArticleSummarySchema)
+async def summarize_article_endpoint(article_id: str, db: Session = Depends(get_db)):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    # Check cache
+    cached = db.query(ArticleSummary).filter(ArticleSummary.article_id == article_id).first()
+    if cached:
+        return cached
+        
+    # Generate new summary
+    summary_text = await ai_summary.summarize_article(article)
+    
+    db_summary = ArticleSummary(
+        article_id=article_id,
+        summary_text=summary_text
+    )
+    db.add(db_summary)
+    
+    # Also update the article's ai_summary column directly for convenience
+    article.ai_summary = summary_text
+    db.commit()
+    db.refresh(db_summary)
+    
+    return db_summary

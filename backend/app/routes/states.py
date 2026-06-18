@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 from backend.app.database.connection import get_db
-from backend.app.models.news import Article
+from backend.app.models.news import Article, StateSummary
+from backend.app.schemas.news import StateSummarySchema
+from backend.app.services import ai_summary
 
 router = APIRouter()
 
@@ -107,3 +109,28 @@ def get_state(slug: str, db: Session = Depends(get_db)):
         "sentimentScore": sentiment_score,
         "recentArticles": [a.id for a in articles]
     }
+
+@router.post("/{state_name}/summarize", response_model=StateSummarySchema)
+async def summarize_state_endpoint(state_name: str, db: Session = Depends(get_db)):
+    cached = db.query(StateSummary).filter(StateSummary.state_name == state_name).first()
+    if cached:
+        return cached
+
+    articles = db.query(Article).filter(Article.state == state_name).order_by(Article.published_at.desc()).limit(10).all()
+    
+    if not articles:
+        from backend.app.services.news_service import fetch_news_from_gnews
+        await fetch_news_from_gnews(db, query=f"{state_name} India", state_name=state_name)
+        articles = db.query(Article).filter(Article.state == state_name).order_by(Article.published_at.desc()).limit(10).all()
+
+    summary_text = await ai_summary.summarize_state(state_name, articles)
+    
+    db_summary = StateSummary(
+        state_name=state_name,
+        summary_text=summary_text
+    )
+    db.add(db_summary)
+    db.commit()
+    db.refresh(db_summary)
+    
+    return db_summary

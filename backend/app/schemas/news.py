@@ -88,3 +88,37 @@ def article_db_to_schema(db_article) -> NewsArticleSchema:
         isBreaking=db_article.is_breaking or False,
         viewCount=db_article.view_count or 0
     )
+
+class ArticleSummarySchema(BaseModel):
+    article_id: str
+    summary_text: str
+    generated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class StateSummarySchema(BaseModel):
+    state_name: str
+    summary_text: str
+    generated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ChatRequestSchema(BaseModel):
+    question: str
+    state: Optional[str] = None
+
+class ChatSourceSchema(BaseModel):
+    name: str
+    url: str
+
+class ChatResponseSchema(BaseModel):
+    id: str
+    question: str
+    answer: str
+    timestamp: datetime
+    sources: List[ChatSourceSchema]
+
+    class Config:
+        from_attributes = True
