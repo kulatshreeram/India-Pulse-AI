@@ -8,16 +8,45 @@ load_dotenv()
 
 # We need to make sure the db tables are created and seeded on startup
 from backend.app.database.connection import engine, Base, SessionLocal
-from backend.app.routes import news, states, search, chat
+from backend.app.routes import news, states, search, chat, analytics
+import asyncio
+from backend.app.models.news import Article
 from backend.app.services.news_service import seed_db_if_empty
+from backend.vector_store.vector_db import get_vector_store
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Seed database
+# Seed database & Vector store
 db = SessionLocal()
 try:
     seed_db_if_empty(db)
+    
+    # Index all articles in vector store
+    articles = db.query(Article).all()
+    print(f"Indexing {len(articles)} articles in vector store...")
+    v_store = get_vector_store()
+    
+    async def index_all():
+        for art in articles:
+            await v_store.add_article(
+                article_id=art.id,
+                title=art.title,
+                description=art.description,
+                content=art.content,
+                state=art.state,
+                category=art.category
+            )
+        print("Vector store indexing completed.")
+        
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(index_all())
+        else:
+            asyncio.run(index_all())
+    except Exception as e:
+        print(f"Error indexing vectors on startup: {e}")
 finally:
     db.close()
 
@@ -37,6 +66,7 @@ app.include_router(news.router, prefix="/api/news", tags=["News"])
 app.include_router(states.router, prefix="/api/states", tags=["States"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 
 @app.get("/")
 def read_root():

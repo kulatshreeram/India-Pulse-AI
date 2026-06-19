@@ -11,6 +11,8 @@ from backend.app.schemas.news import ChatRequestSchema, ChatResponseSchema, Chat
 from backend.app.services import ai_summary
 from backend.app.services.news_service import STATE_KEYWORDS
 
+from backend.vector_store.vector_db import get_vector_store
+
 router = APIRouter()
 
 def detect_state_from_text(text: str) -> Optional[str]:
@@ -30,17 +32,22 @@ async def ask_chat_assistant(payload: ChatRequestSchema, db: Session = Depends(g
     if not state_context:
         state_context = detect_state_from_text(question)
         
-    # 2. Fetch relevant news context
-    if state_context:
-        articles = db.query(Article).filter(Article.state == state_context).order_by(Article.published_at.desc()).limit(8).all()
-        # If no articles in DB, fetch them
-        if not articles:
-            from backend.app.services.news_service import fetch_news_from_gnews
-            await fetch_news_from_gnews(db, query=f"{state_context} India", state_name=state_context)
-            articles = db.query(Article).filter(Article.state == state_context).order_by(Article.published_at.desc()).limit(8).all()
+    # 2. Retrieve context semantically from Vector Store
+    v_store = get_vector_store()
+    search_results = v_store.search(question, limit=6)
+    
+    if search_results:
+        article_ids = [r[0] for r in search_results]
+        db_articles = db.query(Article).filter(Article.id.in_(article_ids)).all()
+        # Sort database articles to preserve similarity ranking
+        art_map = {a.id: a for a in db_articles}
+        articles = [art_map[aid] for aid in article_ids if aid in art_map]
     else:
-        # Fallback to general top headlines
-        articles = db.query(Article).order_by(Article.published_at.desc()).limit(8).all()
+        # Fallback to general filters if vector store returns nothing
+        if state_context:
+            articles = db.query(Article).filter(Article.state == state_context).order_by(Article.published_at.desc()).limit(8).all()
+        else:
+            articles = db.query(Article).order_by(Article.published_at.desc()).limit(8).all()
         
     # 3. Call AI Assistant service
     answer, sources = await ai_summary.ask_assistant(question, state_context, articles)
