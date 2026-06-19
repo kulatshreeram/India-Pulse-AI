@@ -3,6 +3,7 @@
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  LineChart, Line, Legend
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { TrendingUp, Newspaper, Map, Brain, ArrowUp, ArrowDown, Minus } from 'lucide-react';
@@ -121,9 +122,9 @@ function AnalyticsDashboard() {
         <StatCard icon={TrendingUp}  label="Categories"       value={data.totalCategories}  sub="Types tracked"       color="#a855f7" index={3} />
       </div>
 
-      {/* Timeline + Sentiment Pie */}
+      {/* Grid 1: News Volume & Sentiment Trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Timeline */}
+        {/* News Volume */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,11 +150,64 @@ function AnalyticsDashboard() {
           </ResponsiveContainer>
         </motion.div>
 
-        {/* Sentiment Donut */}
+        {/* Sentiment Trend Graph (Task 5) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="p-5 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <h3 className="text-sm font-bold text-white mb-4">Sentiment Trend — Last 7 Days</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data.sentimentData.trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="positive" name="Positive" stroke="#10b981" strokeWidth={2} activeDot={{ r: 6 }} dot={false} />
+              <Line type="monotone" dataKey="neutral" name="Neutral" stroke="#64748b" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="negative" name="Negative" stroke="#ef4444" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </motion.div>
+      </div>
+
+      {/* Grid 2: State Activity & Sentiment Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* State Activity */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
+          className="p-5 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <h3 className="text-sm font-bold text-white mb-4">Most Active States</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={topStates} layout="vertical" barCategoryGap="30%">
+              <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis
+                type="category" dataKey="state"
+                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                axisLine={false} tickLine={false} width={110}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="articleCount" name="Articles" radius={[0, 6, 6, 0]}>
+                {topStates.map((_, i) => (
+                  <Cell key={i} fill={`hsl(${28 + i * 14}, 78%, 58%)`} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </motion.div>
+
+        {/* Sentiment Donut */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
           className="p-5 rounded-2xl"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
         >
@@ -190,32 +244,86 @@ function AnalyticsDashboard() {
         </motion.div>
       </div>
 
-      {/* State Activity */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="p-5 rounded-2xl"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-      >
-        <h3 className="text-sm font-bold text-white mb-4">Most Active States</h3>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={topStates} layout="vertical" barCategoryGap="30%">
-            <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis
-              type="category" dataKey="state"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
-              axisLine={false} tickLine={false} width={110}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="articleCount" name="Articles" radius={[0, 6, 6, 0]}>
-              {topStates.map((_, i) => (
-                <Cell key={i} fill={`hsl(${28 + i * 14}, 78%, 58%)`} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </motion.div>
+      {/* Grid 3: Category Sentiment & News Mood Indicator */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category Sentiment Analysis (Task 4) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="p-5 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <h3 className="text-sm font-bold text-white mb-4">Category Sentiment Analysis</h3>
+          <div className="space-y-3.5">
+            {data.categorySentiment && Object.entries(data.categorySentiment).slice(0, 6).map(([cat, info]: any) => {
+              const isPos = info.dominant.includes("Positive");
+              const isNeg = info.dominant.includes("Negative");
+              const badgeColor = isPos ? 'text-emerald-400 bg-emerald-500/10' : (isNeg ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10');
+              
+              return (
+                <div key={cat} className="flex flex-col gap-1.5 border-b border-white/05 pb-3 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300 capitalize">{cat}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
+                      {info.dominant}
+                    </span>
+                  </div>
+                  {/* Custom horizontal ratio bar */}
+                  <div className="h-1.5 rounded-full overflow-hidden flex bg-slate-800">
+                    <div style={{ width: `${info.positive}%` }} className="h-full bg-emerald-500" />
+                    <div style={{ width: `${info.neutral}%` }} className="h-full bg-slate-500" />
+                    <div style={{ width: `${info.negative}%` }} className="h-full bg-red-500" />
+                  </div>
+                  <div className="flex justify-between text-[9px] text-slate-500">
+                    <span>Pos: {info.positive}%</span>
+                    <span>Neu: {info.neutral}%</span>
+                    <span>Neg: {info.negative}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* News Mood Indicator (Task 6) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="p-5 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <h3 className="text-sm font-bold text-white mb-4">News Mood Indicator</h3>
+          <div className="space-y-3.5">
+            {data.newsMoods && data.newsMoods.slice(0, 5).map((src: any) => {
+              const emoji = src.mood === 'positive' ? '😊' : (src.mood === 'negative' ? '😟' : '😐');
+              const moodText = src.mood.charAt(0).toUpperCase() + src.mood.slice(1);
+              const moodColor = src.mood === 'positive' ? 'text-emerald-400' : (src.mood === 'negative' ? 'text-red-400' : 'text-slate-400');
+              
+              return (
+                <div key={src.source} className="flex items-center justify-between gap-4 border-b border-white/05 pb-3.5 last:border-0 last:pb-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-200 truncate">{src.source}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] text-slate-500">Breakdown:</span>
+                      <span className="text-[10px] text-emerald-500 font-semibold">{src.positive}%</span>
+                      <span className="text-[10px] text-slate-500">/</span>
+                      <span className="text-[10px] text-slate-400 font-semibold">{src.neutral}%</span>
+                      <span className="text-[10px] text-slate-500">/</span>
+                      <span className="text-[10px] text-red-500 font-semibold">{src.negative}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0 bg-white/03 border border-white/05 px-2.5 py-1 rounded-xl">
+                    <span className="text-xs">{emoji}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${moodColor}`}>{moodText}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      </div>
 
       {/* Trending Topics + Category Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -227,7 +335,7 @@ function AnalyticsDashboard() {
           className="p-5 rounded-2xl"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
         >
-          <h3 className="text-sm font-bold text-white mb-4">Trending Topics</h3>
+          <h3 className="text-sm font-bold text-white mb-4">Top 10 Trending Topics</h3>
           <div className="space-y-2.5">
             {data.trendingTopics.slice(0, 10).map((topic, i) => (
               <div key={topic.id} className="flex items-center gap-3">
@@ -235,17 +343,23 @@ function AnalyticsDashboard() {
                 <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <TrendIcon trend={topic.trend} />
-                    <span className="text-xs font-medium text-slate-300 truncate">{topic.topic}</span>
+                    <Link
+                      href={`/dashboard?search=${encodeURIComponent(topic.topic)}`}
+                      className="text-xs font-semibold text-slate-300 hover:text-orange-400 transition-colors truncate"
+                    >
+                      #{topic.topic.replace(/\s+/g, '')}
+                    </Link>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-[10px] font-bold text-slate-500">{topic.growthRate || '+15%'}</span>
                     <div
                       className="h-1.5 rounded-full"
                       style={{
                         width: `${Math.max(20, (topic.count / (data.trendingTopics[0]?.count || 1)) * 60)}px`,
-                        background: `${CATEGORY_COLORS[topic.category]}60`,
+                        background: `${CATEGORY_COLORS[topic.category] || '#fb923c'}60`,
                       }}
                     />
-                    <span className="text-xs text-slate-600">{topic.count}</span>
+                    <span className="text-xs text-slate-600 w-4 text-right">{topic.count}</span>
                   </div>
                 </div>
               </div>

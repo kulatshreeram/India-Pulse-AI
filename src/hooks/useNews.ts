@@ -160,6 +160,59 @@ export function useStateSummary(stateName: string | undefined) {
   });
 }
 
+export function useStateDetail(slug: string | undefined) {
+  return useQuery<any>({
+    queryKey: ['state-detail', slug],
+    queryFn: async () => {
+      if (!slug) throw new Error('No state slug provided');
+      const res = await fetch(`/api/states/${slug}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch state detail');
+      }
+      return res.json();
+    },
+    enabled: !!slug,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useNewsRecommendations(viewedIds: string[]) {
+  return useQuery<NewsArticle[]>({
+    queryKey: ['news-recommendations', viewedIds],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (viewedIds.length > 0) {
+        params.append('viewed', viewedIds.join(','));
+      }
+      const res = await fetch(`/api/news/recommendations?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch recommendations');
+      }
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useClusteredNews(filters: NewsFilter = {}) {
+  return useQuery<{ clusters: Array<{ lead_article: NewsArticle; related_articles: NewsArticle[]; cluster_size: number }> }>({
+    queryKey: ['clustered-news', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.category) params.append('category', filters.category);
+      if (filters.state) params.append('state', filters.state);
+      
+      const res = await fetch(`/api/news/clustered?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch clustered news');
+      }
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+
 export function useChatHistory() {
   return useQuery<any[]>({
     queryKey: ['chat-history'],
@@ -195,4 +248,21 @@ export function useChatMutation() {
     },
   });
 }
+
+export function useSimilarArticles(articleId: string | undefined) {
+  return useQuery<NewsArticle[]>({
+    queryKey: ['similar-articles', articleId],
+    queryFn: async () => {
+      if (!articleId) throw new Error('No article ID provided');
+      const res = await fetch(`/api/news/${articleId}/similar`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch similar articles');
+      }
+      return res.json();
+    },
+    enabled: !!articleId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 

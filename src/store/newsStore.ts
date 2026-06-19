@@ -33,6 +33,11 @@ interface NewsStore {
   bookmarks: string[];
   toggleBookmark: (id: string) => void;
   isBookmarked: (id: string) => boolean;
+
+  // Viewed articles tracking (Smart Recommendations)
+  viewedArticles: string[];
+  addViewedArticle: (id: string) => void;
+  loadViewedArticles: () => void;
 }
 
 const DEFAULT_FILTERS: NewsFilter = {
@@ -78,4 +83,29 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
         : [...state.bookmarks, id],
     })),
   isBookmarked: (id) => get().bookmarks.includes(id),
+  
+  // Viewed articles
+  viewedArticles: [],
+  addViewedArticle: (id) =>
+    set((state) => {
+      const updated = state.viewedArticles.includes(id)
+        ? state.viewedArticles
+        : [...state.viewedArticles, id].slice(-20);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('viewed_articles', JSON.stringify(updated));
+      }
+      return { viewedArticles: updated };
+    }),
+  loadViewedArticles: () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('viewed_articles');
+        if (stored) {
+          set({ viewedArticles: JSON.parse(stored) });
+        }
+      } catch (e) {
+        console.error('Error loading viewed articles:', e);
+      }
+    }
+  },
 }));

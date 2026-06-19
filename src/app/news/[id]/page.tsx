@@ -10,6 +10,50 @@ import { MOCK_ARTICLES, CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_LABELS } from 
 import { formatDate } from '@/lib/utils';
 import { ImpactScoreDisplay } from '@/components/ui/ImpactScore';
 
+export const dynamic = 'force-dynamic';
+
+async function getArticleData(id: string) {
+  // 1. Try backend
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/api/news/${id}`, { next: { revalidate: 10 } });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {}
+
+  // 2. Fallback to mock data
+  const mockArt = MOCK_ARTICLES.find((a) => a.id === id);
+  if (!mockArt) return null;
+  
+  return {
+    id: mockArt.id,
+    title: mockArt.title,
+    description: mockArt.description,
+    summary: mockArt.summary,
+    aiSummary: mockArt.aiSummary,
+    category: mockArt.category,
+    state: mockArt.state,
+    city: mockArt.city,
+    publishedAt: mockArt.publishedAt,
+    imageUrl: mockArt.imageUrl,
+    sentiment: mockArt.sentiment,
+    sentimentScore: mockArt.sentimentScore,
+    isBreaking: mockArt.isBreaking,
+    viewCount: mockArt.viewCount,
+    source: {
+      name: mockArt.source.name,
+      url: mockArt.source.url
+    },
+    impactScore: {
+      local: mockArt.impactScore.local,
+      state: mockArt.impactScore.state,
+      national: mockArt.impactScore.national,
+      global: mockArt.impactScore.global
+    },
+    tags: mockArt.tags
+  };
+}
+
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -20,8 +64,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const article = MOCK_ARTICLES.find((a) => a.id === id);
-  if (!article) return { title: 'Article Not Found' };
+  const article = await getArticleData(id);
+  if (!article) return { title: 'Article Not Found — India Pulse AI' };
   return {
     title: `${article.title} — India Pulse AI`,
     description: article.summary,
@@ -35,12 +79,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function NewsArticlePage({ params }: Props) {
   const { id } = await params;
-  const article = MOCK_ARTICLES.find((a) => a.id === id);
+  const article = await getArticleData(id);
   if (!article) notFound();
 
-  const related = MOCK_ARTICLES.filter(
-    (a) => a.id !== article.id && a.category === article.category
-  ).slice(0, 3);
+  let related = [];
+  try {
+    const simRes = await fetch(`http://127.0.0.1:8000/api/news/${id}/similar`, { next: { revalidate: 10 } });
+    if (simRes.ok) {
+      related = await simRes.json();
+    }
+  } catch (e) {}
+  
+  if (related.length === 0) {
+    related = MOCK_ARTICLES.filter(
+      (a) => a.id !== article.id && a.category === article.category
+    ).slice(0, 3);
+  }
 
   const color = CATEGORY_COLORS[article.category];
   const sentColor =

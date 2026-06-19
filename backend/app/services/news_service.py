@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from backend.app.models.news import Article
 from backend.app.services.mock_data import get_seed_articles
+from backend.app.services.sentiment_analyzer import analyze_sentiment as run_sentiment_analysis
+from backend.app.services.keyword_extractor import extract_keywords
 
 # State coordinates map
 STATE_COORDINATES = {
@@ -123,21 +125,8 @@ def map_article_to_state_and_coords(title: str, description: str):
     return None, None, None, None
 
 def analyze_sentiment(title: str, description: str):
-    text = f"{title} {description or ''}".lower()
-    positive_words = ["growth", "win", "achieve", "success", "launch", "vaccine", "benefit", "boost", "improvement", "positive", "innovative", "progress", "peace", "agreement"]
-    negative_words = ["killed", "arrested", "dead", "crash", "fire", "scam", "protest", "loss", "decline", "warns", "crisis", "attack", "court", "probe", "accuses", "fail", "toll"]
-    
-    pos_count = sum(1 for w in positive_words if w in text)
-    neg_count = sum(1 for w in negative_words if w in text)
-    
-    if pos_count > neg_count:
-        score = random.uniform(0.1, 0.8)
-        return "positive", score
-    elif neg_count > pos_count:
-        score = random.uniform(-0.8, -0.1)
-        return "negative", score
-    else:
-        return "neutral", 0.0
+    res = run_sentiment_analysis(title, description)
+    return res["sentiment"], res["score"], res["positive"], res["negative"], res["neutral"]
 
 def classify_category(title: str, description: str, gnews_category: str = "general"):
     text = f"{title} {description or ''}".lower()
@@ -254,8 +243,10 @@ def generate_fallback_mock_articles(state_name: str, count: int = 5) -> list:
         lat = coords['lat'] + random.uniform(-0.03, 0.03)
         lng = coords['lng'] + random.uniform(-0.03, 0.03)
         
-        sentiment = "positive" if any(w in title for w in ["Approves", "Secures", "Launches", "Raises", "Growth", "Commissions"]) else "neutral"
-        score = 0.60 if sentiment == "positive" else 0.0
+        # Use new sentiment analysis and keyword extraction
+        sent_res = run_sentiment_analysis(title, desc)
+        extracted_kws = extract_keywords(title, desc)
+        tags_str = ", ".join([state_name] + extracted_kws)
         
         fallback_data.append(
             Article(
@@ -275,13 +266,16 @@ def generate_fallback_mock_articles(state_name: str, count: int = 5) -> list:
                 published_at=now - timedelta(hours=random.randint(2, 24)),
                 image_url="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop&q=60",
                 url=f"https://{src['name'].lower().replace(' ', '')}.com/news/{art_id}",
-                sentiment=sentiment,
-                sentiment_score=score,
+                sentiment=sent_res["sentiment"],
+                sentiment_score=sent_res["score"],
+                sentiment_positive=sent_res["positive"],
+                sentiment_negative=sent_res["negative"],
+                sentiment_neutral=sent_res["neutral"],
                 impact_local=random.randint(40, 85),
                 impact_state=random.randint(50, 90),
                 impact_national=random.randint(20, 60),
                 impact_global=random.randint(10, 30),
-                tags=f"{state_name}, News, Local, {category.capitalize()}",
+                tags=tags_str,
                 is_breaking=random.random() < 0.12,
                 view_count=random.randint(100, 4000)
             )
@@ -351,7 +345,14 @@ async def fetch_news_from_gnews(db: Session, query: str = "India", category: str
                     lng = coords['lng'] + random.uniform(-0.03, 0.03)
                 
                 det_category = classify_category(title, description, category)
-                sentiment, score = analyze_sentiment(title, description)
+                
+                # Use new sentiment analysis and keyword extraction
+                sent_res = run_sentiment_analysis(title, description)
+                extracted_kws = extract_keywords(title, description)
+                
+                tags_list = [det_state] if det_state else []
+                tags_list.extend(extracted_kws)
+                tags_str = ", ".join(list(dict.fromkeys(tags_list)))
                 
                 published_at = datetime.utcnow()
                 try:
@@ -378,13 +379,16 @@ async def fetch_news_from_gnews(db: Session, query: str = "India", category: str
                     published_at=published_at,
                     image_url=art.get("image"),
                     url=art.get("url"),
-                    sentiment=sentiment,
-                    sentiment_score=score,
+                    sentiment=sent_res["sentiment"],
+                    sentiment_score=sent_res["score"],
+                    sentiment_positive=sent_res["positive"],
+                    sentiment_negative=sent_res["negative"],
+                    sentiment_neutral=sent_res["neutral"],
                     impact_local=random.randint(20, 85),
                     impact_state=random.randint(30, 90),
                     impact_national=random.randint(40, 95),
                     impact_global=random.randint(10, 75),
-                    tags="India, News, " + (det_state if det_state else "National"),
+                    tags=tags_str,
                     is_breaking=random.random() < 0.15,
                     view_count=random.randint(500, 12000)
                 )
@@ -428,3 +432,39 @@ def get_news(db: Session, category: str = None, state: str = None, q: str = None
     articles = query.offset((page - 1) * limit).limit(limit).all()
     
     return articles, total
+
+def enrich_existing_articles(db: Session):
+    # Find articles that need enrichment
+    articles = db.query(Article).filter(
+        or_(
+            Article.sentiment_positive == None,
+            Article.sentiment_positive == 0.0,
+            Article.tags == None,
+            Article.tags == ""
+        )
+    ).all()
+    
+    if not articles:
+        print("All existing articles are already enriched.")
+        return
+        
+    print(f"Enriching {len(articles)} existing articles with advanced sentiment and keywords...")
+    for art in articles:
+        # Sentiment
+        res = run_sentiment_analysis(art.title, art.description)
+        art.sentiment = res["sentiment"]
+        art.sentiment_score = res["score"]
+        art.sentiment_positive = res["positive"]
+        art.sentiment_negative = res["negative"]
+        art.sentiment_neutral = res["neutral"]
+        
+        # Keywords
+        kws = extract_keywords(art.title, art.description)
+        # Merge with existing state if available
+        tags_list = [art.state] if art.state else []
+        tags_list.extend(kws)
+        art.tags = ", ".join(list(dict.fromkeys(tags_list)))
+        
+    db.commit()
+    print("Article enrichment completed successfully.")
+

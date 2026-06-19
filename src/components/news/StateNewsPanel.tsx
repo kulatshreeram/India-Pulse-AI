@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Radio, Sparkles } from 'lucide-react';
 import { useNewsStore } from '@/store/newsStore';
-import { useNews, useStateSummary } from '@/hooks/useNews';
+import { useNews, useStateSummary, useStateDetail } from '@/hooks/useNews';
 import { NewsCard } from '@/components/news/NewsCard';
 import { getStateByName } from '@/lib/india-states';
 import { SkeletonCard, Skeleton } from '@/components/ui/Skeleton';
@@ -28,6 +28,10 @@ export function StateNewsPanel() {
 
   const { data: summaryData, isLoading: isSummaryLoading, error: summaryError } = useStateSummary(
     viewMode === 'summary' ? stateName : undefined
+  );
+
+  const { data: stateDetail, isLoading: isStateDetailLoading } = useStateDetail(
+    stateInfo?.slug
   );
 
   return (
@@ -105,6 +109,34 @@ export function StateNewsPanel() {
                       </p>
                     </div>
                   </div>
+
+                  {/* State Sentiment Dashboard (Task 3) */}
+                  {viewMode === 'feed' && (
+                    <div className="mb-4 pt-3 border-t border-white/05">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">🎭 State Mood Dashboard</p>
+                      {isStateDetailLoading ? (
+                        <div className="space-y-1.5">
+                          <div className="h-1.5 w-full bg-white/05 rounded animate-pulse" />
+                          <div className="h-3 w-1/2 bg-white/05 rounded animate-pulse" />
+                        </div>
+                      ) : stateDetail?.sentimentBreakdown ? (
+                        <div className="space-y-2">
+                          <div className="h-2 rounded-full overflow-hidden flex bg-slate-800">
+                            <div style={{ width: `${stateDetail.sentimentBreakdown.positive}%` }} className="h-full bg-emerald-500" />
+                            <div style={{ width: `${stateDetail.sentimentBreakdown.neutral}%` }} className="h-full bg-slate-500" />
+                            <div style={{ width: `${stateDetail.sentimentBreakdown.negative}%` }} className="h-full bg-red-500" />
+                          </div>
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-emerald-400 flex items-center gap-0.5">😊 {stateDetail.sentimentBreakdown.positive}%</span>
+                            <span className="text-slate-400 flex items-center gap-0.5">😐 {stateDetail.sentimentBreakdown.neutral}%</span>
+                            <span className="text-red-400 flex items-center gap-0.5">😟 {stateDetail.sentimentBreakdown.negative}%</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-600">Sentiment data not available.</p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Generate Summary Button */}
                   {viewMode === 'feed' && articles.length > 0 && (

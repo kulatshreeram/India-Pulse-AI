@@ -69,6 +69,20 @@ def list_states(db: Session = Depends(get_db)):
             
         sentiment_score = float(avg_sentiment_row[0]) if avg_sentiment_row and avg_sentiment_row[0] is not None else 0.0
         
+        # Calculate positive, negative, and neutral breakdown percentages
+        pos_count = db.query(Article).filter(Article.state == name, Article.sentiment == "positive").count()
+        neg_count = db.query(Article).filter(Article.state == name, Article.sentiment == "negative").count()
+        neu_count = db.query(Article).filter(Article.state == name, Article.sentiment == "neutral").count()
+        total_s = pos_count + neg_count + neu_count
+        if total_s > 0:
+            sentiment_breakdown = {
+                "positive": round((pos_count / total_s) * 100),
+                "negative": round((neg_count / total_s) * 100),
+                "neutral": max(0, 100 - round((pos_count / total_s) * 100) - round((neg_count / total_s) * 100))
+            }
+        else:
+            sentiment_breakdown = {"positive": 0, "negative": 0, "neutral": 0}
+            
         states_list.append({
             "name": name,
             "slug": slug,
@@ -78,7 +92,8 @@ def list_states(db: Session = Depends(get_db)):
             "area": state["area"],
             "newsCount": news_count,
             "topCategory": top_category,
-            "sentimentScore": sentiment_score
+            "sentimentScore": sentiment_score,
+            "sentimentBreakdown": sentiment_breakdown
         })
         
     return states_list
@@ -98,6 +113,21 @@ def get_state(slug: str, db: Session = Depends(get_db)):
         .first()
     sentiment_score = float(avg_sentiment_row[0]) if avg_sentiment_row and avg_sentiment_row[0] is not None else 0.0
     
+    # Calculate state breakdown percentages
+    pos_count = db.query(Article).filter(Article.state == name, Article.sentiment == "positive").count()
+    neg_count = db.query(Article).filter(Article.state == name, Article.sentiment == "negative").count()
+    neu_count = db.query(Article).filter(Article.state == name, Article.sentiment == "neutral").count()
+    total_s = pos_count + neg_count + neu_count
+    if total_s > 0:
+        sentiment_breakdown = {
+            "positive": round((pos_count / total_s) * 100),
+            "negative": round((neg_count / total_s) * 100),
+            "neutral": max(0, 100 - round((pos_count / total_s) * 100) - round((neg_count / total_s) * 100))
+        }
+    else:
+        # Realistic fallback distribution if no news
+        sentiment_breakdown = {"positive": 50, "neutral": 35, "negative": 15}
+        
     return {
         "name": name,
         "slug": slug,
@@ -107,6 +137,7 @@ def get_state(slug: str, db: Session = Depends(get_db)):
         "area": state_meta["area"],
         "newsCount": news_count,
         "sentimentScore": sentiment_score,
+        "sentimentBreakdown": sentiment_breakdown,
         "recentArticles": [a.id for a in articles]
     }
 

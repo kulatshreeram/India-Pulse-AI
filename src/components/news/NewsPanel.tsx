@@ -1,38 +1,53 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   X, ExternalLink, Bookmark, BookmarkCheck,
   Share2, Clock, MapPin, Globe, ChevronRight,
-  Sparkles
+  Sparkles, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { CategoryBadge, SentimentBadge } from '@/components/ui/Badge';
 import { ImpactScoreDisplay } from '@/components/ui/ImpactScore';
 import { SkeletonPanel } from '@/components/ui/Skeleton';
 import { formatDate, truncate } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
-import { useArticleSummary } from '@/hooks/useNews';
+import { useArticleSummary, useSimilarArticles, useNewsRecommendations } from '@/hooks/useNews';
 import { MOCK_ARTICLES } from '@/lib/mock-data';
 import type { NewsArticle } from '@/types';
 
 export function NewsPanel() {
-  const { selectedArticle, isPanelOpen, setIsPanelOpen, setSelectedArticle, toggleBookmark, isBookmarked } =
-    useNewsStore();
+  const { 
+    selectedArticle, 
+    isPanelOpen, 
+    setIsPanelOpen, 
+    setSelectedArticle, 
+    toggleBookmark, 
+    isBookmarked,
+    viewedArticles,
+    addViewedArticle,
+    setFilters
+  } = useNewsStore();
+
+  const [clustersExpanded, setClustersExpanded] = useState(false);
+
+  // Track Viewed Article (Smart Recommendations History)
+  useEffect(() => {
+    if (selectedArticle?.id) {
+      addViewedArticle(selectedArticle.id);
+    }
+  }, [selectedArticle?.id, addViewedArticle]);
 
   const { data: summaryData, isLoading: isSummaryLoading } = useArticleSummary(selectedArticle?.id);
+  const { data: similarArticles = [], isLoading: isSimilarLoading } = useSimilarArticles(selectedArticle?.id);
+  const { data: recommendations = [], isLoading: isRecsLoading } = useNewsRecommendations(viewedArticles);
 
   const close = () => {
     setIsPanelOpen(false);
     setTimeout(() => setSelectedArticle(null), 300);
   };
-
-  const relatedArticles = selectedArticle
-    ? MOCK_ARTICLES.filter(
-        (a) => a.id !== selectedArticle.id && a.category === selectedArticle.category
-      ).slice(0, 3)
-    : [];
 
   return (
     <AnimatePresence>
@@ -201,18 +216,21 @@ export function NewsPanel() {
                 <p className="text-sm text-slate-400 leading-relaxed">{selectedArticle.summary}</p>
               </div>
 
-              {/* Tags */}
+              {/* Tags (Task 3: Topic Explorer Clickable Tags) */}
               <div>
                 <p className="section-heading mb-2">Tags</p>
                 <div className="flex flex-wrap gap-2">
                   {selectedArticle.tags.map((tag) => (
-                    <span
+                    <button
                       key={tag}
-                      className="px-2.5 py-1 rounded-lg text-xs font-medium"
-                      style={{ background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}
+                      onClick={() => {
+                        setFilters({ search: tag });
+                        close();
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/05 hover:bg-orange-500/10 border border-white/08 hover:border-orange-500/30 text-slate-400 hover:text-orange-400 transition-all duration-200"
                     >
                       #{tag}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -226,34 +244,82 @@ export function NewsPanel() {
                 <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-saffron-400" />
               </Link>
 
-              {/* Related Articles */}
-              {relatedArticles.length > 0 && (
-                <div>
-                  <p className="section-heading mb-3">Related Articles</p>
-                  <div className="space-y-2">
-                    {relatedArticles.map((article) => (
-                      <button
-                        key={article.id}
-                        onClick={() => setSelectedArticle(article)}
-                        className="w-full text-left p-3 rounded-xl hover:bg-white/05 transition-all border border-transparent hover:border-white/08 group"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="relative w-16 h-12 rounded-lg overflow-hidden flex-shrink-0">
+              {/* Topic Clustering / Similar Stories (Task 4) */}
+              {similarArticles.length > 0 && (
+                <div className="border-t border-white/05 pt-4">
+                  <button
+                    onClick={() => setClustersExpanded(!clustersExpanded)}
+                    className="flex items-center justify-between w-full section-heading hover:text-white transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      📁 Related Stories ({similarArticles.length})
+                    </span>
+                    {clustersExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                  </button>
+                  
+                  {clustersExpanded && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      className="space-y-2 mt-3 overflow-hidden"
+                    >
+                      {similarArticles.map((art) => (
+                        <button
+                          key={art.id}
+                          onClick={() => setSelectedArticle(art)}
+                          className="w-full text-left p-2.5 rounded-xl bg-white/02 hover:bg-white/05 border border-white/05 transition-all text-xs flex gap-3 items-start group"
+                        >
+                          <div className="relative w-14 h-10 rounded-lg overflow-hidden flex-shrink-0">
                             <Image
-                              src={article.imageUrl}
-                              alt={article.title}
+                              src={art.imageUrl}
+                              alt={art.title}
                               fill
                               className="object-cover"
-                              sizes="64px"
+                              sizes="56px"
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-slate-300 group-hover:text-white leading-snug line-clamp-2">
-                              {article.title}
+                            <p className="font-semibold text-slate-300 group-hover:text-orange-400 transition-colors leading-snug line-clamp-2">
+                              {art.title}
                             </p>
-                            <p className="text-xs text-slate-600 mt-1">{article.source.name}</p>
+                            <p className="text-[9px] text-slate-600 mt-1">{art.source.name} · {art.state}</p>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-saffron-400 flex-shrink-0" />
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
+              )}
+
+              {/* Smart Recommendations - You May Also Like (Task 5) */}
+              {recommendations.length > 0 && (
+                <div className="border-t border-white/05 pt-4">
+                  <p className="section-heading mb-3 flex items-center gap-1.5">
+                    ✨ You May Also Like
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {recommendations.slice(0, 4).map((art) => (
+                      <button
+                        key={art.id}
+                        onClick={() => setSelectedArticle(art)}
+                        className="text-left p-2 rounded-xl bg-white/02 hover:bg-white/05 border border-white/05 hover:border-white/08 transition-all flex flex-col gap-2 group"
+                      >
+                        <div className="relative w-full h-16 rounded-lg overflow-hidden">
+                          <Image
+                            src={art.imageUrl}
+                            alt={art.title}
+                            fill
+                            className="object-cover"
+                            sizes="120px"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1 flex flex-col justify-between">
+                          <p className="text-[10px] font-semibold text-slate-300 group-hover:text-orange-400 leading-tight line-clamp-2 transition-colors">
+                            {art.title}
+                          </p>
+                          <p className="text-[8px] text-slate-600 mt-1 capitalize font-medium truncate">
+                            {art.category} · {art.source.name}
+                          </p>
                         </div>
                       </button>
                     ))}

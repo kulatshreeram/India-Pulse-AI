@@ -38,6 +38,9 @@ class NewsArticleSchema(BaseModel):
     url: Optional[str] = None
     sentiment: str
     sentimentScore: float
+    sentimentPositive: Optional[float] = 0.0
+    sentimentNegative: Optional[float] = 0.0
+    sentimentNeutral: Optional[float] = 0.0
     impactScore: ImpactScoreSchema
     tags: List[str] = []
     isBreaking: bool = False
@@ -78,6 +81,9 @@ def article_db_to_schema(db_article) -> NewsArticleSchema:
         url=db_article.url,
         sentiment=db_article.sentiment or "neutral",
         sentimentScore=db_article.sentiment_score or 0.0,
+        sentimentPositive=db_article.sentiment_positive or 0.0,
+        sentimentNegative=db_article.sentiment_negative or 0.0,
+        sentimentNeutral=db_article.sentiment_neutral or 0.0,
         impactScore=ImpactScoreSchema(
             local=db_article.impact_local or 0,
             state=db_article.impact_state or 0,

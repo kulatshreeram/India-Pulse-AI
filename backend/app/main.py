@@ -7,20 +7,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # We need to make sure the db tables are created and seeded on startup
-from backend.app.database.connection import engine, Base, SessionLocal
+from backend.app.database.connection import engine, Base, SessionLocal, run_migrations
 from backend.app.routes import news, states, search, chat, analytics
 import asyncio
 from backend.app.models.news import Article
-from backend.app.services.news_service import seed_db_if_empty
+from backend.app.services.news_service import seed_db_if_empty, enrich_existing_articles
 from backend.vector_store.vector_db import get_vector_store
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
 # Seed database & Vector store
 db = SessionLocal()
 try:
     seed_db_if_empty(db)
+    enrich_existing_articles(db)
     
     # Index all articles in vector store
     articles = db.query(Article).all()

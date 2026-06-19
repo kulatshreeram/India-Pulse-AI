@@ -30,6 +30,9 @@ class Article(Base):
     
     sentiment = Column(String)
     sentiment_score = Column(Float)
+    sentiment_positive = Column(Float, default=0.0)
+    sentiment_negative = Column(Float, default=0.0)
+    sentiment_neutral = Column(Float, default=0.0)
     
     # Flattened ImpactScore
     impact_local = Column(Integer)

@@ -34,6 +34,88 @@ async def list_news(
         "articles": serialized
     }
 
+@router.get("/clustered", response_model=dict)
+def get_clustered_news(
+    category: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Article)
+    if category:
+        query = query.filter(Article.category == category)
+    if state:
+        query = query.filter(Article.state == state)
+    articles = query.order_by(Article.published_at.desc()).all()
+    
+    from backend.app.services.topic_clustering import cluster_articles
+    clusters = cluster_articles(articles)
+    
+    serialized_clusters = []
+    for c in clusters:
+        serialized_clusters.append({
+            "lead_article": article_db_to_schema(c["lead_article"]),
+            "related_articles": [article_db_to_schema(a) for a in c["related_articles"]],
+            "cluster_size": c["cluster_size"]
+        })
+        
+    return {
+        "status": "ok",
+        "clusters": serialized_clusters
+    }
+
+@router.get("/recommendations", response_model=List[NewsArticleSchema])
+def get_recommendations(
+    viewed: Optional[str] = Query(None),
+    limit: int = Query(4, ge=1, le=10),
+    db: Session = Depends(get_db)
+):
+    viewed_ids = [v.strip() for v in viewed.split(",") if v.strip()] if viewed else []
+    recommendations = []
+    
+    if viewed_ids:
+        viewed_articles = db.query(Article).filter(Article.id.in_(viewed_ids)).all()
+        categories = list(set([a.category for a in viewed_articles if a.category]))
+        states = list(set([a.state for a in viewed_articles if a.state]))
+        
+        rec_query = db.query(Article).filter(~Article.id.in_(viewed_ids))
+        if categories and states:
+            rec_query = rec_query.filter((Article.category.in_(categories)) | (Article.state.in_(states)))
+        elif categories:
+            rec_query = rec_query.filter(Article.category.in_(categories))
+        elif states:
+            rec_query = rec_query.filter(Article.state.in_(states))
+            
+        recommendations = rec_query.order_by(Article.published_at.desc()).limit(limit).all()
+        
+    if len(recommendations) < limit:
+        exclude_ids = viewed_ids + [r.id for r in recommendations]
+        padding = db.query(Article).filter(~Article.id.in_(exclude_ids))\
+                  .order_by(Article.view_count.desc(), Article.published_at.desc())\
+                  .limit(limit - len(recommendations)).all()
+        recommendations.extend(padding)
+        
+    return [article_db_to_schema(a) for a in recommendations[:limit]]
+
+@router.get("/{article_id}/similar", response_model=List[NewsArticleSchema])
+def get_similar_articles(article_id: str, limit: int = Query(6), db: Session = Depends(get_db)):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+        
+    from backend.vector_store.vector_db import get_vector_store
+    v_store = get_vector_store()
+    
+    query_text = f"{article.title}. {article.description or ''}"
+    results = v_store.search(query_text, limit=limit + 2)
+    
+    similar_ids = [art_id for art_id, score in results if art_id != article_id and score >= 0.30]
+    similar_articles = db.query(Article).filter(Article.id.in_(similar_ids)).all()
+    
+    similar_articles_map = {a.id: a for a in similar_articles}
+    sorted_similar = [similar_articles_map[sid] for sid in similar_ids if sid in similar_articles_map]
+    
+    return [article_db_to_schema(a) for a in sorted_similar[:limit]]
+
 @router.get("/{article_id}", response_model=NewsArticleSchema)
 def get_article(article_id: str, db: Session = Depends(get_db)):
     article = db.query(Article).filter(Article.id == article_id).first()

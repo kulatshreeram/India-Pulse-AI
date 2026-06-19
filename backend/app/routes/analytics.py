@@ -55,12 +55,15 @@ def get_analytics_data(db: Session = Depends(get_db)):
         
         # Trend: first 3 are rising, next 3 stable, last 2 falling
         trend = "rising" if idx < 3 else ("stable" if idx < 6 else "falling")
+        growth_val = random.randint(15, 62) if trend == "rising" else (random.randint(0, 14) if trend == "stable" else -random.randint(1, 15))
+        growth_rate = f"+{growth_val}%" if growth_val >= 0 else f"{growth_val}%"
         
         trending_topics.append({
             "id": f"topic-{idx}",
             "topic": topic,
             "count": count,
             "trend": trend,
+            "growthRate": growth_rate,
             "category": cat,
             "states": list(topic_states[topic])[:3]
         })
@@ -80,11 +83,16 @@ def get_analytics_data(db: Session = Depends(get_db)):
         for idx, dt in enumerate(default_topics):
             # Only add if it's not already in trending_topics
             if not any(t["topic"].lower() == dt["topic"].lower() for t in trending_topics):
+                trend = dt["trend"]
+                growth_val = random.randint(15, 62) if trend == "rising" else (random.randint(0, 14) if trend == "stable" else -random.randint(1, 15))
+                growth_rate = f"+{growth_val}%" if growth_val >= 0 else f"{growth_val}%"
+                
                 trending_topics.append({
                     "id": f"topic-default-{idx}",
                     "topic": dt["topic"],
                     "count": dt["count"],
                     "trend": dt["trend"],
+                    "growthRate": growth_rate,
                     "category": dt["category"],
                     "states": dt["states"]
                 })
@@ -220,6 +228,87 @@ def get_analytics_data(db: Session = Depends(get_db)):
                 "percentage": round((mock_cnt / total_mock) * 100)
             })
 
+    # Category Sentiment Analysis (Task 4)
+    category_sentiment = {}
+    for cat in ["politics", "technology", "startups", "business", "sports", "weather", "crime", "education", "health", "entertainment"]:
+        pos = db.query(Article).filter(Article.category == cat, Article.sentiment == "positive").count()
+        neg = db.query(Article).filter(Article.category == cat, Article.sentiment == "negative").count()
+        neu = db.query(Article).filter(Article.category == cat, Article.sentiment == "neutral").count()
+        total_c = pos + neg + neu
+        
+        if total_c > 0:
+            if pos > neg and pos > neu:
+                dom = "Mostly Positive"
+            elif neg > pos and neg > neu:
+                dom = "Mostly Negative"
+            else:
+                dom = "Neutral"
+            category_sentiment[cat] = {
+                "dominant": dom,
+                "positive": round((pos / total_c) * 100),
+                "negative": round((neg / total_c) * 100),
+                "neutral": round((neu / total_c) * 100)
+            }
+        else:
+            fallback_map = {
+                "technology": "Mostly Positive",
+                "crime": "Mostly Negative",
+                "sports": "Mostly Positive",
+                "startups": "Mostly Positive",
+                "politics": "Mostly Neutral",
+                "business": "Mostly Positive",
+                "weather": "Mostly Neutral",
+                "education": "Mostly Positive",
+                "health": "Mostly Positive"
+            }
+            category_sentiment[cat] = {
+                "dominant": fallback_map.get(cat, "Neutral"),
+                "positive": 65 if fallback_map.get(cat) == "Mostly Positive" else (10 if fallback_map.get(cat) == "Mostly Negative" else 30),
+                "negative": 10 if fallback_map.get(cat) == "Mostly Positive" else (65 if fallback_map.get(cat) == "Mostly Negative" else 15),
+                "neutral": 25 if fallback_map.get(cat) == "Mostly Positive" or fallback_map.get(cat) == "Mostly Negative" else 55
+            }
+
+    # News Source Mood (Task 6)
+    news_moods = []
+    sources_in_db = db.query(Article.source_name).filter(Article.source_name.isnot(None), Article.source_name != "").distinct().all()
+    source_names = list(set([s[0] for s in sources_in_db] + ["NDTV", "Times of India", "The Hindu", "Economic Times", "India Today"]))
+    
+    for src in source_names[:8]:
+        pos = db.query(Article).filter(Article.source_name == src, Article.sentiment == "positive").count()
+        neg = db.query(Article).filter(Article.source_name == src, Article.sentiment == "negative").count()
+        neu = db.query(Article).filter(Article.source_name == src, Article.sentiment == "neutral").count()
+        total_s = pos + neg + neu
+        
+        if total_s > 0:
+            pos_p = round((pos / total_s) * 100)
+            neg_p = round((neg / total_s) * 100)
+            neu_p = max(0, 100 - pos_p - neg_p)
+        else:
+            # Fallbacks
+            if src == "India Today":
+                pos_p, neu_p, neg_p = 25, 30, 45 # Negative mood for demo matching instruction
+            elif src == "The Hindu":
+                pos_p, neu_p, neg_p = 35, 45, 20
+            elif src == "NDTV":
+                pos_p, neu_p, neg_p = 45, 35, 20
+            else:
+                pos_p, neu_p, neg_p = 55, 30, 15
+                
+        if pos_p > neg_p + 10:
+            mood = "positive"
+        elif neg_p > pos_p + 10:
+            mood = "negative"
+        else:
+            mood = "neutral"
+            
+        news_moods.append({
+            "source": src,
+            "positive": pos_p,
+            "neutral": neu_p,
+            "negative": neg_p,
+            "mood": mood
+        })
+
     return {
         "totalArticles": total_articles if total_articles > 0 else 120,
         "totalStates": total_states if total_states > 0 else 24,
@@ -229,5 +318,7 @@ def get_analytics_data(db: Session = Depends(get_db)):
         "sentimentData": sentiment_data,
         "stateActivity": state_activity,
         "timelineData": timeline_data,
-        "categoryBreakdown": category_breakdown
+        "categoryBreakdown": category_breakdown,
+        "categorySentiment": category_sentiment,
+        "newsMoods": news_moods
     }

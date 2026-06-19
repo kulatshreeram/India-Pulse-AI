@@ -198,6 +198,8 @@ export interface AnalyticsData {
   stateActivity: StateActivity[];
   timelineData: Array<{ date: string; count: number }>;
   categoryBreakdown: Array<{ category: NewsCategory; count: number; percentage: number }>;
+  categorySentiment?: Record<string, { dominant: string; positive: number; negative: number; neutral: number }>;
+  newsMoods?: Array<{ source: string; positive: number; neutral: number; negative: number; mood: 'positive' | 'neutral' | 'negative' }>;
 }
 
 // ─── UI State Types ───────────────────────────────────────────────────────────

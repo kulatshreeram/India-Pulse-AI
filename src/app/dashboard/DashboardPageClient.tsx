@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
@@ -100,9 +102,26 @@ function DashboardPageInner() {
   );
 }
 
+function SearchParamInitializer() {
+  const searchParams = useSearchParams();
+  const { setFilters } = useNewsStore();
+  
+  useEffect(() => {
+    const searchVal = searchParams.get('search');
+    if (searchVal) {
+      setFilters({ search: searchVal });
+    }
+  }, [searchParams, setFilters]);
+  
+  return null;
+}
+
 export function DashboardPageClient() {
   return (
     <Providers>
+      <Suspense fallback={null}>
+        <SearchParamInitializer />
+      </Suspense>
       <DashboardPageInner />
     </Providers>
   );

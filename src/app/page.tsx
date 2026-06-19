@@ -72,9 +72,94 @@ const FEATURES = [
   },
 ];
 
-export default function LandingPage() {
-  const breakingArticles = MOCK_ARTICLES.filter((a) => a.isBreaking).slice(0, 4);
-  const latestArticles = MOCK_ARTICLES.slice(0, 6);
+export const dynamic = 'force-dynamic';
+
+async function getHomepageData() {
+  try {
+    const [newsRes, analyticsRes] = await Promise.all([
+      fetch('http://127.0.0.1:8000/api/news?limit=20', { next: { revalidate: 15 } }),
+      fetch('http://127.0.0.1:8000/api/analytics', { next: { revalidate: 15 } })
+    ]);
+    
+    if (!newsRes.ok || !analyticsRes.ok) return null;
+    return {
+      newsData: await newsRes.json(),
+      analyticsData: await analyticsRes.json()
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+export default async function LandingPage() {
+  const data = await getHomepageData();
+  
+  let breakingArticles: any[] = [];
+  let latestArticles: any[] = [];
+  let trendingTopics: any[] = [];
+  let mostDiscussedState = 'Maharashtra';
+  let topCategory = 'politics';
+  
+  let statsValues = {
+    states: '28+',
+    categories: '12',
+    articles: '60+',
+  };
+  
+  if (data) {
+    const allArticles = data.newsData.articles || [];
+    breakingArticles = allArticles.filter((a: any) => a.isBreaking).slice(0, 4);
+    if (breakingArticles.length === 0) {
+      breakingArticles = allArticles.slice(0, 4);
+    }
+    latestArticles = allArticles.slice(0, 6);
+    trendingTopics = data.analyticsData.trendingTopics || [];
+    
+    const sortedStates = [...(data.analyticsData.stateActivity || [])].sort(
+      (a: any, b: any) => b.articleCount - a.articleCount
+    );
+    mostDiscussedState = sortedStates[0]?.state || 'Maharashtra';
+    
+    const sortedCats = [...(data.analyticsData.categoryBreakdown || [])].sort(
+      (a: any, b: any) => b.count - a.count
+    );
+    topCategory = sortedCats[0]?.category || 'politics';
+    
+    statsValues = {
+      states: String(data.analyticsData.totalStates || '28+'),
+      categories: String(data.analyticsData.totalCategories || '12'),
+      articles: String(data.analyticsData.totalArticles || '60+'),
+    };
+  } else {
+    // Fallback using mock data mapping
+    const fallback = MOCK_ARTICLES.map((a) => ({
+      id: a.id,
+      title: a.title,
+      description: a.description,
+      summary: a.summary,
+      publishedAt: a.publishedAt,
+      category: a.category,
+      isBreaking: a.isBreaking,
+      state: a.state,
+      source: { name: a.source.name, url: a.source.url },
+    }));
+    breakingArticles = fallback.filter((a) => a.isBreaking).slice(0, 4);
+    latestArticles = fallback.slice(0, 6);
+    trendingTopics = [
+      { topic: 'Electric Vehicles' },
+      { topic: 'Startup Funding' },
+      { topic: 'Monsoon Alert' },
+      { topic: 'Digital India' },
+      { topic: 'Metro Expansion' },
+    ];
+  }
+  
+  const stats = [
+    { value: statsValues.states, label: 'States Covered', icon: Map },
+    { value: statsValues.categories, label: 'News Categories', icon: Newspaper },
+    { value: statsValues.articles, label: 'Live Articles', icon: Radio },
+    { value: '4.9', label: 'User Rating', icon: Star },
+  ];
 
   return (
     <main className="min-h-screen bg-slate-950">
@@ -257,13 +342,32 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Dynamic Insights Grid Panel */}
+      <section className="py-6 px-6 max-w-5xl mx-auto -mt-10 mb-8 relative z-25">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-amber-500/02 border border-orange-500/15 backdrop-blur-md">
+            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider mb-1">🔥 Trending Today</p>
+            <p className="text-base font-bold text-white mb-2"># {trendingTopics[0]?.topic || 'Startup Funding'}</p>
+            <p className="text-xs text-slate-500">Fastest rising topic in the news cycle right now.</p>
+          </div>
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/02 border border-blue-500/15 backdrop-blur-md">
+            <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">📍 Most Discussed State</p>
+            <p className="text-base font-bold text-white mb-2">{mostDiscussedState}</p>
+            <p className="text-xs text-slate-500">Region recording the highest volume of news updates.</p>
+          </div>
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-violet-500/02 border border-purple-500/15 backdrop-blur-md">
+            <p className="text-[10px] text-purple-400 font-bold uppercase tracking-wider mb-1">⚡ Top Category</p>
+            <p className="text-base font-bold text-white mb-2 capitalize">{topCategory}</p>
+            <p className="text-xs text-slate-500">Most active thematic area across publications.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Stats Section */}
-      <section className="py-12 px-6">
+      <section className="py-10 px-6">
         <div className="max-w-4xl mx-auto">
-          <div
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            {STATS.map(({ value, label, icon: Icon }) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {stats.map(({ value, label, icon: Icon }) => (
               <div
                 key={label}
                 className="text-center p-6 rounded-2xl"
@@ -298,6 +402,20 @@ export default function LandingPage() {
       {/* Breaking News Preview */}
       <section className="py-12 px-6">
         <div className="max-w-6xl mx-auto">
+          {/* Trending Today hashtags strip */}
+          <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-900/50 border border-white/05 rounded-2xl p-4">
+            <span className="text-xs font-bold text-orange-400 uppercase tracking-wider mr-2">🔥 Trending:</span>
+            {trendingTopics.slice(0, 7).map((topic: any) => (
+              <Link
+                key={topic.topic}
+                href={`/dashboard?search=${encodeURIComponent(topic.topic)}`}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/05 border border-white/08 hover:border-orange-500/50 hover:bg-orange-500/10 text-slate-300 hover:text-white transition-all duration-200"
+              >
+                #{topic.topic.replace(/\s+/g, '')}
+              </Link>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -349,6 +467,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
 
       {/* Features Section */}
       <section className="py-16 px-6">
