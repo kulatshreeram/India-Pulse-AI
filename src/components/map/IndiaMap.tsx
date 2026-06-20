@@ -26,7 +26,44 @@ const DARK_TILES_ATTR = '© OpenStreetMap contributors © CARTO';
 // ── Marker icon factory ───────────────────────────────────────────────────────
 function createNewsIcon(article: NewsArticle) {
   const color = CATEGORY_COLORS[article.category] ?? '#fb923c';
-  const size = article.isBreaking ? 20 : article.impactScore.national > 80 ? 18 : 14;
+  const size = article.isBreaking ? 24 : article.impactScore.national > 80 ? 18 : 14;
+
+  if (article.isBreaking) {
+    return L.divIcon({
+      html: `
+        <div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
+          <!-- Red pulsing outer ring -->
+          <div style="
+            position:absolute;width:100%;height:100%;border-radius:50%;
+            background:#ef4444;opacity:0.6;
+            animation:pulse-beacon 1.2s infinite;
+          "></div>
+          <!-- White border ring -->
+          <div style="
+            position:absolute;width:12px;height:12px;border-radius:50%;
+            background:#ef4444;
+            border:2.5px solid #ffffff;
+            box-shadow:0 0 14px #ef4444;
+          "></div>
+          <!-- Small text tag above marker -->
+          <div style="
+            position:absolute;bottom:115%;left:50%;transform:translateX(-50%);
+            white-space:nowrap;background:rgba(239,68,68,0.95);
+            color:white;font-size:8px;font-weight:900;
+            padding:1.5px 5.5px;border-radius:4px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.4);
+            letter-spacing:0.5px;
+            text-transform:uppercase;
+            border: 1px solid rgba(255,255,255,0.15);
+            display: flex; align-items: center; gap: 2px;
+          "><span style="width:4px;height:4px;border-radius:50%;background:#ffffff;display:inline-block;animation:pulse-ring 1s infinite;"></span>Breaking</div>
+        </div>`,
+      className: '',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -16],
+    });
+  }
 
   return L.divIcon({
     html: `
@@ -135,7 +172,7 @@ export default function IndiaMap() {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   
   const { filters, setFilters, isHeatmapMode } = useNewsStore();
-  const { data: statesList } = useStates();
+  const { data: statesList } = useStates(filters.category);
 
   const stateCounts = statesList?.reduce((acc: Record<string, number>, s) => {
     acc[s.name] = s.newsCount;
@@ -203,10 +240,47 @@ export default function IndiaMap() {
     const stateName = normalizeStateName(feature.properties.ST_NM);
     const count = stateCounts[stateName] ?? 0;
 
-    layer.bindTooltip(`${stateName} (${count})`, {
+    const stateDetailObj = statesList?.find(s => normalizeStateName(s.name) === stateName);
+    const trending = stateDetailObj?.trendingTopic || 'General';
+    const score = stateDetailObj?.sentimentScore ?? 0.0;
+    const sentiment = score > 0.05 ? 'Positive 😊' : score < -0.05 ? 'Negative 😟' : 'Neutral 😐';
+
+    const tooltipHtml = `
+      <div style="
+        background: rgba(9, 14, 28, 0.96);
+        backdrop-filter: blur(12px);
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        padding: 8px 12px;
+        min-width: 175px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+        color: #e2e8f0;
+        font-family: system-ui, -apple-system, sans-serif;
+      ">
+        <p style="font-size: 13px; font-weight: 700; color: #ffffff; margin: 0 0 6px 0;">${stateName}</p>
+        <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 0 0 6px 0;"></div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tr>
+            <td style="color: #64748b; padding: 2px 0;">Articles:</td>
+            <td style="text-align: right; font-weight: 600; color: #f8fafc; padding: 2px 0;">${count}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; padding: 2px 0;">Top Topic:</td>
+            <td style="text-align: right; font-weight: 600; color: #fb923c; padding: 2px 0;">${trending}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; padding: 2px 0;">Sentiment:</td>
+            <td style="text-align: right; font-weight: 600; padding: 2px 0; color: ${score > 0.05 ? '#34d399' : score < -0.05 ? '#f87171' : '#94a3b8'}">${sentiment}</td>
+          </tr>
+        </table>
+      </div>
+    `;
+
+    layer.bindTooltip(tooltipHtml, {
       sticky: true,
-      className: 'custom-map-tooltip',
-    });
+      className: 'custom-premium-tooltip',
+      html: true
+    } as any);
 
     layer.on({
       mouseover: (e: any) => {
@@ -252,7 +326,7 @@ export default function IndiaMap() {
           />
           {geoJsonData && (
             <GeoJSON
-              key={`${filters.state || 'none'}-${isHeatmapMode ? 'heatmap' : 'normal'}-${statesList ? 'ready' : 'notready'}-${Object.keys(stateCounts).length}`}
+              key={`${filters.state || 'none'}-${isHeatmapMode ? 'heatmap' : 'normal'}-${filters.category || 'all'}-${statesList ? 'ready' : 'notready'}-${Object.keys(stateCounts).length}`}
               data={geoJsonData}
               style={getFeatureStyle}
               onEachFeature={onEachFeature}

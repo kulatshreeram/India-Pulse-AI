@@ -63,7 +63,7 @@ def generate_fallback_state_summary(state_name: str, articles: List[Article]) ->
     return digest
 
 # Helper: Failsafe local chat response engine
-def generate_fallback_chat_reply(question: str, state_context: Optional[str], articles: List[Article]) -> Tuple[str, List[Dict[str, str]]]:
+async def generate_fallback_chat_reply(question: str, state_context: Optional[str], articles: List[Article], target_lang: str = "en", db: Optional[Session] = None) -> Tuple[str, List[Dict[str, str]]]:
     q_lower = question.lower()
     sources = []
     
@@ -88,6 +88,9 @@ def generate_fallback_chat_reply(question: str, state_context: Optional[str], ar
             "I could not locate any recent news articles in our database matching your request. "
             "Try refreshing state news on the map or asking about active states like Maharashtra, Delhi, or Karnataka."
         )
+        if target_lang != "en" and db:
+            from backend.app.services.translation import translate_text
+            reply = await translate_text(reply, target_lang, db)
         return reply, []
 
     # Format summaries of the articles as context
@@ -127,6 +130,10 @@ def generate_fallback_chat_reply(question: str, state_context: Optional[str], ar
                 + "Let me know if you want detailed information on any of these reports."
             )
             
+    if target_lang != "en" and db:
+        from backend.app.services.translation import translate_text
+        reply = await translate_text(reply, target_lang, db)
+        
     return reply, dedup_sources
 
 # Call OpenAI to summarize a single article
@@ -232,10 +239,10 @@ async def summarize_state(state_name: str, articles: List[Article]) -> str:
         return generate_fallback_state_summary(state_name, articles)
 
 # Call OpenAI for the Chat Assistant
-async def ask_assistant(question: str, state_context: Optional[str], articles: List[Article]) -> Tuple[str, List[Dict[str, str]]]:
+async def ask_assistant(question: str, state_context: Optional[str], articles: List[Article], target_lang: str = "en", db: Optional[Session] = None) -> Tuple[str, List[Dict[str, str]]]:
     api_key = get_openai_api_key()
     if not api_key:
-        return generate_fallback_chat_reply(question, state_context, articles)
+        return await generate_fallback_chat_reply(question, state_context, articles, target_lang, db)
         
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -276,6 +283,11 @@ async def ask_assistant(question: str, state_context: Optional[str], articles: L
         f"News Context:\n{news_context}"
     )
     
+    if target_lang == "hi":
+        prompt += "\n\nIMPORTANT: You must write your entire answer in Hindi (हिंदी). Maintain a polite, objective and professional tone."
+    elif target_lang == "mr":
+        prompt += "\n\nIMPORTANT: You must write your entire answer in Marathi (मराठी). Maintain a polite, objective and professional tone."
+        
     payload = {
         "model": "gpt-4o-mini",
         "messages": [
@@ -283,7 +295,7 @@ async def ask_assistant(question: str, state_context: Optional[str], articles: L
             {"role": "user", "content": question}
         ],
         "temperature": 0.3,
-        "max_tokens": 300
+        "max_tokens": 400
     }
     
     try:
@@ -295,7 +307,7 @@ async def ask_assistant(question: str, state_context: Optional[str], articles: L
                 return answer, dedup_sources
             else:
                 print(f"OpenAI chat API error: {response.status_code} - {response.text}")
-                return generate_fallback_chat_reply(question, state_context, articles)
+                return await generate_fallback_chat_reply(question, state_context, articles, target_lang, db)
     except Exception as e:
         print(f"Exception during OpenAI chat call: {e}")
-        return generate_fallback_chat_reply(question, state_context, articles)
+        return await generate_fallback_chat_reply(question, state_context, articles, target_lang, db)

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Radio, Sparkles } from 'lucide-react';
 import { useNewsStore } from '@/store/newsStore';
-import { useNews, useStateSummary, useStateDetail } from '@/hooks/useNews';
+import { useNews, useStateSummary, useStateDetail, useTranslatedText, useStates } from '@/hooks/useNews';
+import { useTranslation } from '@/hooks/useTranslation';
 import { NewsCard } from '@/components/news/NewsCard';
 import { getStateByName } from '@/lib/india-states';
 import { SkeletonCard, Skeleton } from '@/components/ui/Skeleton';
@@ -13,6 +14,7 @@ export function StateNewsPanel() {
   const { filters, setFilters, setSelectedArticle } = useNewsStore();
   const stateName = filters.state;
   const [viewMode, setViewMode] = useState<'feed' | 'summary'>('feed');
+  const { t, language } = useTranslation();
 
   useEffect(() => {
     setViewMode('feed');
@@ -30,9 +32,11 @@ export function StateNewsPanel() {
     viewMode === 'summary' ? stateName : undefined
   );
 
-  const { data: stateDetail, isLoading: isStateDetailLoading } = useStateDetail(
-    stateInfo?.slug
-  );
+  const rawStateSummary = summaryData?.summary_text || '';
+  const { translatedText: translatedStateSummary, isLoading: isTranslatingStateSummary } = useTranslatedText(rawStateSummary, language);
+
+  const { data: statesList, isLoading: isStatesListLoading } = useStates(filters.category);
+  const stateDetail = statesList?.find((s) => s.name === stateName);
 
   return (
     <AnimatePresence>
@@ -88,38 +92,49 @@ export function StateNewsPanel() {
 
             {/* Content */}
             <div className="flex-1 p-4 space-y-4">
-              {/* State Info card */}
-              {stateInfo && (
+              {/* State Info card (State Intelligence Card) */}
+              {stateInfo && stateDetail && (
                 <div
-                  className="p-3.5 rounded-xl"
+                  className="p-4 rounded-xl space-y-3.5"
                   style={{
-                    background: 'rgba(255,255,255,0.02)',
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))',
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <p className="text-slate-500 mb-0.5 font-medium">Capital</p>
+                      <p className="text-slate-500 mb-0.5 font-medium">{t("Capital")}</p>
                       <p className="font-semibold text-slate-200">{stateInfo.capital}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500 mb-0.5 font-medium">Population</p>
+                      <p className="text-slate-500 mb-0.5 font-medium">{t("Population")}</p>
                       <p className="font-semibold text-slate-200">
                         {(stateInfo.population / 1000000).toFixed(1)}M
                       </p>
                     </div>
                   </div>
 
-                  {/* State Sentiment Dashboard (Task 3) */}
+                  <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-white/05">
+                    <div>
+                      <p className="text-slate-500 mb-0.5 font-medium">{t("Articles Count")}</p>
+                      <p className="font-semibold text-slate-200">{stateDetail.newsCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-0.5 font-medium">{t("Top Category")}</p>
+                      <p className="font-semibold text-slate-200 capitalize">{t(stateDetail.topCategory)}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/05">
+                    <p className="text-xs text-slate-500 mb-0.5 font-medium">{t("Trending Topic")}</p>
+                    <p className="text-sm font-bold text-saffron-400">{t(stateDetail.trendingTopic)}</p>
+                  </div>
+
+                  {/* State Mood Dashboard */}
                   {viewMode === 'feed' && (
-                    <div className="mb-4 pt-3 border-t border-white/05">
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">🎭 State Mood Dashboard</p>
-                      {isStateDetailLoading ? (
-                        <div className="space-y-1.5">
-                          <div className="h-1.5 w-full bg-white/05 rounded animate-pulse" />
-                          <div className="h-3 w-1/2 bg-white/05 rounded animate-pulse" />
-                        </div>
-                      ) : stateDetail?.sentimentBreakdown ? (
+                    <div className="pt-3 border-t border-white/05">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">🎭 {t("State Mood Dashboard")}</p>
+                      {stateDetail.sentimentBreakdown ? (
                         <div className="space-y-2">
                           <div className="h-2 rounded-full overflow-hidden flex bg-slate-800">
                             <div style={{ width: `${stateDetail.sentimentBreakdown.positive}%` }} className="h-full bg-emerald-500" />
@@ -149,7 +164,7 @@ export function StateNewsPanel() {
                       }}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      Generate State Summary
+                      {t("Generate State Summary")}
                     </button>
                   )}
                 </div>
@@ -161,13 +176,13 @@ export function StateNewsPanel() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <Sparkles className="w-3.5 h-3.5 text-saffron-400" />
-                      <span>AI State Summary</span>
+                      <span>{t("AI State Summary")}</span>
                     </div>
                     <button
                       onClick={() => setViewMode('feed')}
                       className="text-xs text-saffron-400 hover:text-saffron-300 font-semibold flex items-center gap-1"
                     >
-                      ← Back to Feed
+                      ← {t("Back to Feed")}
                     </button>
                   </div>
 
@@ -190,7 +205,14 @@ export function StateNewsPanel() {
                         border: '1px solid rgba(251,146,60,0.2)',
                       }}
                     >
-                      {summaryData?.summary_text}
+                      {isTranslatingStateSummary ? (
+                        <div className="space-y-2">
+                          <div className="h-3 w-full bg-white/10 rounded animate-pulse" />
+                          <div className="h-3 w-5/6 bg-white/10 rounded animate-pulse" />
+                        </div>
+                      ) : (
+                        translatedStateSummary
+                      )}
                     </div>
                   )}
                 </div>

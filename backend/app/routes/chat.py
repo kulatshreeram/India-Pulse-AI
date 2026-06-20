@@ -23,18 +23,37 @@ def detect_state_from_text(text: str) -> Optional[str]:
                 return state
     return None
 
+def detect_devanagari_language(text: str) -> str:
+    if not any(ord(char) >= 0x0900 and ord(char) <= 0x097F for char in text):
+        return 'en'
+    marathi_words = ["आहे", "आहेत", "काय", "घडलं", "झाले", "होते", "कधी", "कुठे", "कोण", "कोणत्या", "बाबत", "झाला", "मराठी", "महाराष्ट्र"]
+    hindi_words = ["है", "हैं", "क्या", "हुआ", "था", "थी", "थे", "कब", "कहाँ", "कौन", "कौनसा", "बारे", "हिंदी", "भारत", "समाचार"]
+    text_lower = text.lower()
+    mr_count = sum(1 for w in marathi_words if w in text_lower)
+    hi_count = sum(1 for w in hindi_words if w in text_lower)
+    if mr_count > hi_count:
+        return 'mr'
+    return 'hi'
+
 @router.post("", response_model=ChatResponseSchema)
 async def ask_chat_assistant(payload: ChatRequestSchema, db: Session = Depends(get_db)):
     question = payload.question
     state_context = payload.state
     
-    # 1. Detect state context if not explicitly passed
-    if not state_context:
-        state_context = detect_state_from_text(question)
+    # Detect language and translate query to English for semantic search
+    lang = detect_devanagari_language(question)
+    question_en = question
+    if lang != 'en':
+        from backend.app.services.translation import translate_text
+        question_en = await translate_text(question, "en", db)
         
-    # 2. Retrieve context semantically from Vector Store
+    # 1. Detect state context if not explicitly passed (using English query)
+    if not state_context:
+        state_context = detect_state_from_text(question_en)
+        
+    # 2. Retrieve context semantically from Vector Store (using English query)
     v_store = get_vector_store()
-    search_results = v_store.search(question, limit=6)
+    search_results = v_store.search(question_en, limit=6)
     
     if search_results:
         article_ids = [r[0] for r in search_results]
@@ -49,8 +68,8 @@ async def ask_chat_assistant(payload: ChatRequestSchema, db: Session = Depends(g
         else:
             articles = db.query(Article).order_by(Article.published_at.desc()).limit(8).all()
         
-    # 3. Call AI Assistant service
-    answer, sources = await ai_summary.ask_assistant(question, state_context, articles)
+    # 3. Call AI Assistant service (passing language parameter and original question)
+    answer, sources = await ai_summary.ask_assistant(question, state_context, articles, target_lang=lang, db=db)
     
     # 4. Save to chat history
     msg_id = str(uuid.uuid4())

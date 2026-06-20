@@ -14,6 +14,7 @@ import { useNews } from '@/hooks/useNews';
 import { useNewsStore } from '@/store/newsStore';
 import { Providers } from '@/components/Providers';
 import { Layers, RefreshCw } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const MapWrapper = dynamic(() => import('@/components/map/MapWrapper'), {
   ssr: false,
@@ -30,6 +31,7 @@ const MapWrapper = dynamic(() => import('@/components/map/MapWrapper'), {
 function MapStats() {
   const { filters } = useNewsStore();
   const { data, isLoading, refetch } = useNews(filters);
+  const { t } = useTranslation();
 
   return (
     <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
@@ -46,14 +48,14 @@ function MapStats() {
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-semibold text-slate-200">
-            {isLoading ? '...' : data?.totalResults ?? 0} articles
+            {isLoading ? '...' : data?.totalResults ?? 0} {t("Articles")}
           </span>
         </div>
         <div className="w-px h-4 bg-white/10" />
         <button
           onClick={() => refetch()}
           className="text-slate-500 hover:text-orange-400 transition-colors"
-          title="Refresh news"
+          title={t("Refresh News")}
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
@@ -63,6 +65,7 @@ function MapStats() {
 }
 
 function DashboardPageInner() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col h-screen bg-slate-950 overflow-hidden">
       <Navbar />
@@ -87,7 +90,7 @@ function DashboardPageInner() {
             }}
           >
             <Layers className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-xs text-slate-500 font-medium">Click marker to read news</span>
+            <span className="text-xs text-slate-500 font-medium">{t("Click marker to read news")}</span>
           </div>
         </motion.div>
         <div

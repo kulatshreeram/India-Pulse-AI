@@ -70,3 +70,14 @@ class ChatMessageLog(Base):
     answer = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     sources_json = Column(String)  # JSON-serialized list of sources (name, url)
+
+class TranslationCache(Base):
+    __tablename__ = "translation_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    text_hash = Column(String, index=True) # md5 hash of original text
+    target_lang = Column(String, index=True) # 'hi', 'mr'
+    original_text = Column(String)
+    translated_text = Column(String)
+    translated_at = Column(DateTime, default=datetime.utcnow)
+

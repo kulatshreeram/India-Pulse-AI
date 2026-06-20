@@ -6,6 +6,8 @@ import { useNewsStore } from '@/store/newsStore';
 import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_LABELS } from '@/lib/mock-data';
 import type { NewsCategory } from '@/types';
 
+import { useTranslation } from '@/hooks/useTranslation';
+
 const CATEGORIES: NewsCategory[] = [
   'politics', 'technology', 'startups', 'business', 'sports',
   'entertainment', 'education', 'science', 'weather', 'crime', 'health', 'government',
@@ -19,6 +21,7 @@ const DATE_RANGES = [
 
 export function MapControls() {
   const { filters, setFilters, resetFilters, isHeatmapMode, toggleHeatmap } = useNewsStore();
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -43,7 +46,7 @@ export function MapControls() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Filter className="w-3.5 h-3.5 text-saffron-400" />
-            <span className="text-xs font-semibold text-slate-200">Filter News</span>
+            <span className="text-xs font-semibold text-slate-200">{t("Filter News")}</span>
           </div>
           {(filters.category || filters.dateRange) && (
             <button
@@ -51,13 +54,13 @@ export function MapControls() {
               className="flex items-center gap-1 text-xs text-slate-500 hover:text-saffron-400 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
-              Reset
+              {t("Reset")}
             </button>
           )}
         </div>
 
         {/* Date Range */}
-        <p className="section-heading mb-2">Time Period</p>
+        <p className="section-heading mb-2">{t("Date Range")}</p>
         <div className="flex gap-1 mb-4">
           {DATE_RANGES.map(({ value, label }) => (
             <button
@@ -74,13 +77,13 @@ export function MapControls() {
                 border: `1px solid ${filters.dateRange === value ? 'rgba(251,146,60,0.4)' : 'rgba(255,255,255,0.06)'}`,
               }}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
 
         {/* Categories */}
-        <p className="section-heading mb-2">Category</p>
+        <p className="section-heading mb-2">{t("Categories")}</p>
         <div className="space-y-1">
           {CATEGORIES.map((cat) => {
             const isActive = filters.category === cat;
@@ -97,7 +100,7 @@ export function MapControls() {
                 }}
               >
                 <span className="text-sm">{CATEGORY_ICONS[cat]}</span>
-                <span className="font-medium">{CATEGORY_LABELS[cat]}</span>
+                <span className="font-medium">{t(CATEGORY_LABELS[cat])}</span>
                 {isActive && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: color }} />
                 )}
@@ -119,8 +122,8 @@ export function MapControls() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
         }}
       >
-        <Thermometer className="w-4 h-4" />
-        Heatmap {isHeatmapMode ? 'On' : 'Off'}
+        <Layers className="w-4 h-4" />
+        {t("Heatmap Mode")} {isHeatmapMode ? 'On' : 'Off'}
       </button>
     </motion.div>
   );

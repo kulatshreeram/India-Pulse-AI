@@ -1,11 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
-from backend.app.database.connection import get_db
-from backend.app.models.news import Article, StateSummary
-from backend.app.schemas.news import StateSummarySchema
-from backend.app.services import ai_summary
+from typing import List, Optional
+import random
 
 router = APIRouter()
 
@@ -45,8 +42,11 @@ STATES_METADATA = [
 ]
 
 @router.get("")
-def list_states(db: Session = Depends(get_db)):
-    counts = db.query(Article.state, func.count(Article.id)).group_by(Article.state).all()
+def list_states(category: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    counts_query = db.query(Article.state, func.count(Article.id))
+    if category:
+        counts_query = counts_query.filter(Article.category == category)
+    counts = counts_query.group_by(Article.state).all()
     counts_map = {state: count for state, count in counts if state}
     
     states_list = []
@@ -55,24 +55,34 @@ def list_states(db: Session = Depends(get_db)):
         slug = state["slug"]
         news_count = counts_map.get(name, 0)
         
-        top_cat_row = db.query(Article.category, func.count(Article.id))\
-            .filter(Article.state == name)\
-            .group_by(Article.category)\
+        top_cat_query = db.query(Article.category, func.count(Article.id)).filter(Article.state == name)
+        if category:
+            top_cat_query = top_cat_query.filter(Article.category == category)
+        top_cat_row = top_cat_query.group_by(Article.category)\
             .order_by(func.count(Article.id).desc())\
             .first()
             
         top_category = top_cat_row[0] if top_cat_row else None
         
-        avg_sentiment_row = db.query(func.avg(Article.sentiment_score))\
-            .filter(Article.state == name)\
-            .first()
+        avg_sentiment_query = db.query(func.avg(Article.sentiment_score)).filter(Article.state == name)
+        if category:
+            avg_sentiment_query = avg_sentiment_query.filter(Article.category == category)
+        avg_sentiment_row = avg_sentiment_query.first()
             
         sentiment_score = float(avg_sentiment_row[0]) if avg_sentiment_row and avg_sentiment_row[0] is not None else 0.0
         
         # Calculate positive, negative, and neutral breakdown percentages
-        pos_count = db.query(Article).filter(Article.state == name, Article.sentiment == "positive").count()
-        neg_count = db.query(Article).filter(Article.state == name, Article.sentiment == "negative").count()
-        neu_count = db.query(Article).filter(Article.state == name, Article.sentiment == "neutral").count()
+        pos_query = db.query(Article).filter(Article.state == name, Article.sentiment == "positive")
+        neg_query = db.query(Article).filter(Article.state == name, Article.sentiment == "negative")
+        neu_query = db.query(Article).filter(Article.state == name, Article.sentiment == "neutral")
+        if category:
+            pos_query = pos_query.filter(Article.category == category)
+            neg_query = neg_query.filter(Article.category == category)
+            neu_query = neu_query.filter(Article.category == category)
+            
+        pos_count = pos_query.count()
+        neg_count = neg_query.count()
+        neu_count = neu_query.count()
         total_s = pos_count + neg_count + neu_count
         if total_s > 0:
             sentiment_breakdown = {
@@ -81,7 +91,24 @@ def list_states(db: Session = Depends(get_db)):
                 "neutral": max(0, 100 - round((pos_count / total_s) * 100) - round((neg_count / total_s) * 100))
             }
         else:
-            sentiment_breakdown = {"positive": 0, "negative": 0, "neutral": 0}
+            sentiment_breakdown = {"positive": 50, "neutral": 35, "negative": 15}
+            
+        # Extract dynamic trending topic from article tags
+        tags_query = db.query(Article.tags).filter(Article.state == name)
+        if category:
+            tags_query = tags_query.filter(Article.category == category)
+        tags_rows = tags_query.all()
+        
+        tag_counts = {}
+        for row in tags_rows:
+            if row[0]:
+                for tag in row[0].split(","):
+                    t_clean = tag.strip().capitalize()
+                    if t_clean and len(t_clean) > 2 and t_clean not in ["India", name, "General", "Breaking", "News"]:
+                        tag_counts[t_clean] = tag_counts.get(t_clean, 0) + 1
+                        
+        fallback_topics = ["Infrastructure", "Elections", "Startups", "Metro Extension", "Green Energy", "IT Corridor"]
+        trending_topic = max(tag_counts, key=tag_counts.get) if tag_counts else random.choice(fallback_topics)
             
         states_list.append({
             "name": name,
@@ -91,9 +118,10 @@ def list_states(db: Session = Depends(get_db)):
             "population": state["population"],
             "area": state["area"],
             "newsCount": news_count,
-            "topCategory": top_category,
+            "topCategory": top_category or "General",
             "sentimentScore": sentiment_score,
-            "sentimentBreakdown": sentiment_breakdown
+            "sentimentBreakdown": sentiment_breakdown,
+            "trendingTopic": trending_topic
         })
         
     return states_list

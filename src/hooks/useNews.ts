@@ -61,6 +61,7 @@ export function useNews(filters: NewsFilter = {}) {
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
@@ -94,11 +95,14 @@ export function useBreakingNews() {
   });
 }
 
-export function useStates() {
+export function useStates(category?: string) {
   return useQuery<any[]>({
-    queryKey: ['states'],
+    queryKey: ['states', category],
     queryFn: async () => {
-      const res = await fetch('/api/states');
+      const params = new URLSearchParams();
+      if (category) params.append('category', category);
+      const url = `/api/states${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error('Failed to fetch states');
       }
@@ -264,5 +268,78 @@ export function useSimilarArticles(articleId: string | undefined) {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+export function useTranslationService() {
+  return useMutation({
+    mutationFn: async (payload: { text: string; targetLang: string }) => {
+      const res = await fetch('/api/news/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: payload.text, target_lang: payload.targetLang }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to translate text');
+      }
+      return res.json();
+    },
+  });
+}
+
+import { useState, useEffect } from 'react';
+
+export function useTranslatedText(text: string | undefined, targetLang: 'en' | 'hi' | 'mr') {
+  const [translatedText, setTranslatedText] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<any>(null);
+
+  useEffect(() => {
+    if (!text) {
+      setTranslatedText('');
+      return;
+    }
+
+    if (targetLang === 'en') {
+      setTranslatedText(text);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoading(true);
+
+    fetch('/api/news/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text, target_lang: targetLang }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Translation failed');
+        return res.json();
+      })
+      .then((data) => {
+        if (isMounted) {
+          setTranslatedText(data.translated_text);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err);
+          setTranslatedText(text);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [text, targetLang]);
+
+  return { translatedText, isLoading, error };
+}
+
 
 

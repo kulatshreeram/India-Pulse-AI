@@ -6,6 +6,7 @@ import { Bot, Send, User, Sparkles, RefreshCw, Newspaper } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Providers } from '@/components/Providers';
 import { useChatHistory, useChatMutation } from '@/hooks/useNews';
+import { useTranslation, WELCOME_MESSAGES } from '@/hooks/useTranslation';
 import { formatRelativeTime, truncate, generateId } from '@/lib/utils';
 import type { ChatMessage, NewsArticle } from '@/types';
 
@@ -123,6 +124,7 @@ function AssistantInner() {
 
   const { data: historyData, isLoading: isHistoryLoading } = useChatHistory();
   const chatMutation = useChatMutation();
+  const { t, language } = useTranslation();
 
   useEffect(() => {
     if (historyData && historyData.length > 0) {
@@ -161,8 +163,7 @@ function AssistantInner() {
         {
           id: 'welcome',
           role: 'assistant',
-          content:
-            '**Welcome to India Pulse AI Assistant!** 👋\n\nI can help you:\n\n• Find news from any state or city\n• Summarize events by category (politics, tech, sports...)\n• Explain what\'s trending across India\n• Answer questions about specific stories\n\nWhat would you like to know?',
+          content: WELCOME_MESSAGES[language as keyof typeof WELCOME_MESSAGES] || WELCOME_MESSAGES.en,
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -251,14 +252,14 @@ function AssistantInner() {
                 {
                   id: 'reset',
                   role: 'assistant',
-                  content: 'Chat cleared! Ask me anything about Indian news.',
+                  content: language === 'hi' ? 'चैट साफ़ हो गई! भारतीय समाचारों के बारे में कुछ भी पूछें।' : language === 'mr' ? 'चॅट साफ झाली! भारतीय बातम्यांबद्दल काहीही विचारा.' : 'Chat cleared! Ask me anything about Indian news.',
                   timestamp: new Date().toISOString(),
                 },
               ])
             }
             className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Clear
+            <RefreshCw className="w-3.5 h-3.5" /> {t("Clear Chat")}
           </button>
         </div>
 
@@ -311,7 +312,7 @@ function AssistantInner() {
         {/* Suggested prompts — only show with no replies yet */}
         {messages.length <= 1 && (
           <div className="pb-4 flex-shrink-0">
-            <p className="section-heading mb-3">Suggested Questions</p>
+            <p className="section-heading mb-3">{t("Suggested Questions")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SUGGESTED_PROMPTS.map((prompt) => (
                 <button
@@ -325,7 +326,7 @@ function AssistantInner() {
                   }}
                 >
                   <span className="text-base flex-shrink-0">{prompt.icon}</span>
-                  {prompt.text}
+                  {t(prompt.text)}
                 </button>
               ))}
             </div>
@@ -349,7 +350,7 @@ function AssistantInner() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
-              placeholder="Ask about any Indian state, topic, or event…"
+              placeholder={t("Ask anything about Indian news...")}
               className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none"
               id="ai-chat-input"
               disabled={chatMutation.isPending}

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from pydantic import BaseModel
 from backend.app.database.connection import get_db
 from backend.app.models.news import Article, ArticleSummary
 from backend.app.schemas.news import NewsArticleSchema, article_db_to_schema, ArticleSummarySchema
@@ -17,6 +18,11 @@ async def list_news(
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
+    # Translate query if it is in Devanagari
+    if q and any(ord(char) >= 0x0900 and ord(char) <= 0x097F for char in q):
+        from backend.app.services.translation import translate_text
+        q = await translate_text(q, "en", db)
+
     articles, total = news_service.get_news(db, category, state, q, page, limit)
     
     # Trigger GNews pull on-demand if there are no cached articles for this state
@@ -168,3 +174,20 @@ async def summarize_article_endpoint(article_id: str, db: Session = Depends(get_
     db.refresh(db_summary)
     
     return db_summary
+
+class TranslateRequestSchema(BaseModel):
+    text: str
+    target_lang: str
+
+@router.post("/translate", response_model=dict)
+async def translate_text_endpoint(
+    request: TranslateRequestSchema,
+    db: Session = Depends(get_db)
+):
+    from backend.app.services.translation import translate_text
+    translated = await translate_text(request.text, request.target_lang, db)
+    return {
+        "original_text": request.text,
+        "translated_text": translated,
+        "target_lang": request.target_lang
+    }

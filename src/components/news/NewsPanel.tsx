@@ -14,7 +14,8 @@ import { ImpactScoreDisplay } from '@/components/ui/ImpactScore';
 import { SkeletonPanel } from '@/components/ui/Skeleton';
 import { formatDate, truncate } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
-import { useArticleSummary, useSimilarArticles, useNewsRecommendations } from '@/hooks/useNews';
+import { useArticleSummary, useSimilarArticles, useNewsRecommendations, useTranslatedText } from '@/hooks/useNews';
+import { useTranslation } from '@/hooks/useTranslation';
 import { MOCK_ARTICLES } from '@/lib/mock-data';
 import type { NewsArticle } from '@/types';
 
@@ -43,6 +44,12 @@ export function NewsPanel() {
   const { data: summaryData, isLoading: isSummaryLoading } = useArticleSummary(selectedArticle?.id);
   const { data: similarArticles = [], isLoading: isSimilarLoading } = useSimilarArticles(selectedArticle?.id);
   const { data: recommendations = [], isLoading: isRecsLoading } = useNewsRecommendations(viewedArticles);
+
+  const { t, language } = useTranslation();
+  const rawAiSummary = summaryData?.summary_text || selectedArticle?.aiSummary || 'Summary not available.';
+  const rawFullSummary = selectedArticle?.summary || '';
+  const { translatedText: translatedAiSummary, isLoading: isTranslatingAi } = useTranslatedText(rawAiSummary, language);
+  const { translatedText: translatedFullSummary, isLoading: isTranslatingFull } = useTranslatedText(rawFullSummary, language);
 
   const close = () => {
     setIsPanelOpen(false);
@@ -156,7 +163,7 @@ export function NewsPanel() {
               {/* Sentiment + Sentiment bar */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="section-heading">Sentiment Analysis</p>
+                  <p className="section-heading">{t("Sentiment Analysis")}</p>
                   <SentimentBadge sentiment={selectedArticle.sentiment} score={selectedArticle.sentimentScore} />
                 </div>
                 <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
@@ -195,9 +202,9 @@ export function NewsPanel() {
                   <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-saffron-400 to-orange-600 flex items-center justify-center">
                     <Sparkles className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <p className="text-xs font-semibold text-saffron-400 uppercase tracking-wide">AI Summary</p>
+                  <p className="text-xs font-semibold text-saffron-400 uppercase tracking-wide">{t("AI Summary")}</p>
                 </div>
-                {isSummaryLoading ? (
+                {isSummaryLoading || isTranslatingAi ? (
                   <div className="space-y-2">
                     <div className="h-3 w-3/4 bg-white/10 rounded animate-pulse" />
                     <div className="h-3 w-full bg-white/10 rounded animate-pulse" />
@@ -205,15 +212,22 @@ export function NewsPanel() {
                   </div>
                 ) : (
                   <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-                    {summaryData?.summary_text || selectedArticle.aiSummary || 'Summary not available.'}
+                    {translatedAiSummary || t('Summary not available.')}
                   </p>
                 )}
               </div>
 
               {/* Full Summary */}
               <div>
-                <p className="section-heading mb-2">Summary</p>
-                <p className="text-sm text-slate-400 leading-relaxed">{selectedArticle.summary}</p>
+                <p className="section-heading mb-2">{t("Summary")}</p>
+                {isTranslatingFull ? (
+                  <div className="space-y-2">
+                    <div className="h-3 w-full bg-white/10 rounded animate-pulse" />
+                    <div className="h-3 w-5/6 bg-white/10 rounded animate-pulse" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400 leading-relaxed">{translatedFullSummary}</p>
+                )}
               </div>
 
               {/* Tags (Task 3: Topic Explorer Clickable Tags) */}

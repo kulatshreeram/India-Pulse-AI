@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Live Map',  icon: Map      },
@@ -20,6 +21,7 @@ const NAV_LINKS = [
 export function Navbar() {
   const pathname = usePathname();
   const { language, setLanguage } = useNewsStore();
+  const { t } = useTranslation();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-14">
@@ -56,7 +58,7 @@ export function Navbar() {
               )}
             >
               <Icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">{label}</span>
+              <span className="hidden sm:block">{t(label)}</span>
             </Link>
           ))}
         </div>
