@@ -4,6 +4,11 @@ from sqlalchemy import func
 from typing import List, Optional
 import random
 
+from backend.app.database.connection import get_db
+from backend.app.models.news import Article, StateSummary
+from backend.app.schemas.news import StateSummarySchema
+from backend.app.services import ai_summary
+
 router = APIRouter()
 
 # States metadata matching src/lib/india-states.ts
