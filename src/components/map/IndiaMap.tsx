@@ -89,9 +89,13 @@ function createNewsIcon(article: NewsArticle) {
 
 // ── Markers layer ─────────────────────────────────────────────────────────────
 function NewsMarkers() {
-  const { filters, setSelectedArticle } = useNewsStore();
+  const { filters, setSelectedArticle, isReplayActive, replayTimestamp } = useNewsStore();
   const { data } = useNews(filters);
-  const articles = data?.articles ?? [];
+  let articles = data?.articles ?? [];
+
+  if (isReplayActive && replayTimestamp !== null) {
+    articles = articles.filter((a) => new Date(a.publishedAt).getTime() <= replayTimestamp);
+  }
 
   return (
     <MarkerClusterGroup chunkedLoading maxClusterRadius={40}>
@@ -172,7 +176,7 @@ export default function IndiaMap() {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   
   const { filters, setFilters, isHeatmapMode } = useNewsStore();
-  const { data: statesList } = useStates(filters.category);
+  const { data: statesList } = useStates(filters.category, filters);
 
   const stateCounts = statesList?.reduce((acc: Record<string, number>, s) => {
     acc[s.name] = s.newsCount;

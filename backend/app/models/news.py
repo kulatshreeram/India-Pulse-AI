@@ -81,3 +81,19 @@ class TranslationCache(Base):
     translated_text = Column(String)
     translated_at = Column(DateTime, default=datetime.utcnow)
 
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    user_id = Column(String, primary_key=True, index=True)
+    interests = Column(String, nullable=False) # comma-separated
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, index=True, nullable=False)
+    article_id = Column(String, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+

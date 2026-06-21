@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import Link from 'next/link';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -9,7 +11,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Newspaper, Map, Brain, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Providers } from '@/components/Providers';
-import { useAnalytics } from '@/hooks/useAnalytics';
+import { useAnalytics, useNewsGrowth } from '@/hooks/useAnalytics';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { CATEGORY_COLORS } from '@/lib/mock-data';
 
@@ -93,6 +95,14 @@ function TrendIcon({ trend }: { trend: 'rising' | 'falling' | 'stable' }) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function AnalyticsDashboard() {
   const { data, isLoading } = useAnalytics();
+  const [growthState, setGrowthState] = useState<string>('');
+  const [growthCategory, setGrowthCategory] = useState<string>('');
+  
+  const { data: growthRes } = useNewsGrowth(
+    growthState || undefined,
+    growthCategory || undefined
+  );
+  const growthData = growthRes?.data || [];
 
   if (isLoading || !data) {
     return (
@@ -243,6 +253,68 @@ function AnalyticsDashboard() {
           </div>
         </motion.div>
       </div>
+
+      {/* Grid 2.5: Cumulative News Growth Over Time */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.48 }}
+        className="p-5 rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 className="text-sm font-bold text-white">News Growth Trend — Last 30 Days (Cumulative)</h3>
+            <p className="text-xs text-slate-500 mt-1">Visualize historical news publication rate and cumulative growth</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* State Filter */}
+            <select
+              value={growthState}
+              onChange={(e) => setGrowthState(e.target.value)}
+              className="bg-slate-900 border border-white/10 rounded-lg text-xs font-semibold px-3 py-1.5 text-slate-300 focus:outline-none focus:border-orange-500 outline-none"
+            >
+              <option value="">All States</option>
+              {data.stateActivity.map(s => (
+                <option key={s.state} value={s.state}>{s.state}</option>
+              ))}
+            </select>
+            
+            {/* Category Filter */}
+            <select
+              value={growthCategory}
+              onChange={(e) => setGrowthCategory(e.target.value)}
+              className="bg-slate-900 border border-white/10 rounded-lg text-xs font-semibold px-3 py-1.5 text-slate-300 focus:outline-none focus:border-orange-500 outline-none capitalize"
+            >
+              <option value="">All Categories</option>
+              {["politics", "technology", "startups", "business", "sports", "entertainment", "science", "weather", "crime"].map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="w-full" style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={growthData}>
+              <defs>
+                <linearGradient id="growthAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="cumulative" name="Cumulative Articles" stroke="#ef4444" strokeWidth={2} fill="url(#growthAreaGrad)" />
+              <Area type="monotone" dataKey="count" name="Daily Articles" stroke="#fb923c" strokeWidth={1.5} fill="none" strokeDasharray="4 4" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </motion.div>
 
       {/* Grid 3: Category Sentiment & News Mood Indicator */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

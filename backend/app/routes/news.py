@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 from backend.app.database.connection import get_db
 from backend.app.models.news import Article, ArticleSummary
 from backend.app.schemas.news import NewsArticleSchema, article_db_to_schema, ArticleSummarySchema
@@ -14,6 +15,9 @@ async def list_news(
     category: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
     q: Optional[str] = Query(None),
+    dateRange: Optional[str] = Query(None),
+    startDate: Optional[str] = Query(None),
+    endDate: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -23,7 +27,10 @@ async def list_news(
         from backend.app.services.translation import translate_text
         q = await translate_text(q, "en", db)
 
-    articles, total = news_service.get_news(db, category, state, q, page, limit)
+    articles, total = news_service.get_news(
+        db, category, state, q, page, limit, dateRange, startDate, endDate
+    )
+
     
     # Trigger GNews pull on-demand if there are no cached articles for this state
     if state and len(articles) == 0:
@@ -191,3 +198,80 @@ async def translate_text_endpoint(
         "translated_text": translated,
         "target_lang": request.target_lang
     }
+
+@router.get("/growth", response_model=dict)
+def get_news_growth(
+    state: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    now = datetime.utcnow()
+    thirty_days_ago = now - timedelta(days=30)
+    
+    query = db.query(Article.published_at).filter(Article.published_at >= thirty_days_ago)
+    if state:
+        query = query.filter(Article.state == state)
+    if category:
+        query = query.filter(Article.category == category)
+        
+    articles_dates = query.order_by(Article.published_at.asc()).all()
+    
+    counts_by_day = {}
+    for i in range(30):
+        day = thirty_days_ago + timedelta(days=i)
+        counts_by_day[day.strftime("%Y-%m-%d")] = 0
+        
+    for (pub_date,) in articles_dates:
+        if pub_date:
+            date_str = pub_date.strftime("%Y-%m-%d")
+            if date_str in counts_by_day:
+                counts_by_day[date_str] += 1
+                
+    growth_data = []
+    cumulative = 0
+    for day_str, count in sorted(counts_by_day.items()):
+        cumulative += count
+        growth_data.append({
+            "date": datetime.strptime(day_str, "%Y-%m-%d").strftime("%b %d"),
+            "count": count,
+            "cumulative": cumulative
+        })
+        
+    return {
+        "status": "ok",
+        "data": growth_data
+    }
+
+@router.get("/personalized", response_model=dict)
+def get_personalized_news(
+    x_user_id: Optional[str] = Header(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    from backend.app.models.news import UserPreference
+    
+    user_id = x_user_id or "guest_user"
+    pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
+    
+    interests = []
+    if pref and pref.interests:
+        interests = [cat.strip().lower() for cat in pref.interests.split(",") if cat.strip()]
+        
+    query = db.query(Article)
+    if interests:
+        query = query.filter(Article.category.in_(interests))
+        
+    query = query.order_by(Article.published_at.desc())
+    total = query.count()
+    articles = query.offset((page - 1) * limit).limit(limit).all()
+    
+    serialized = [article_db_to_schema(a) for a in articles]
+    
+    return {
+        "status": "ok",
+        "totalResults": total,
+        "articles": serialized,
+        "interests": interests
+    }
+

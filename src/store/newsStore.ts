@@ -31,6 +31,7 @@ interface NewsStore {
   
   // Bookmarks
   bookmarks: string[];
+  setBookmarks: (ids: string[]) => void;
   toggleBookmark: (id: string) => void;
   isBookmarked: (id: string) => boolean;
 
@@ -38,6 +39,11 @@ interface NewsStore {
   viewedArticles: string[];
   addViewedArticle: (id: string) => void;
   loadViewedArticles: () => void;
+
+  // Replay Mode
+  replayTimestamp: number | null;
+  isReplayActive: boolean;
+  setReplayState: (state: Partial<{ replayTimestamp: number | null; isReplayActive: boolean }>) => void;
 }
 
 const DEFAULT_FILTERS: NewsFilter = {
@@ -76,6 +82,7 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
   
   // Bookmarks
   bookmarks: [],
+  setBookmarks: (bookmarks) => set({ bookmarks }),
   toggleBookmark: (id) =>
     set((state) => ({
       bookmarks: state.bookmarks.includes(id)
@@ -108,4 +115,9 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
       }
     }
   },
+
+  // Replay Mode
+  replayTimestamp: null,
+  isReplayActive: false,
+  setReplayState: (newState) => set((state) => ({ ...state, ...newState })),
 }));

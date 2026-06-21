@@ -46,11 +46,57 @@ STATES_METADATA = [
     {"name": "Puducherry", "slug": "puducherry", "capital": "Puducherry", "lat": 11.9416, "lng": 79.8083, "population": 1671000, "area": 479}
 ]
 
+def apply_date_filters(query, date_range: str = None, start_date: str = None, end_date: str = None):
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    
+    if date_range:
+        if date_range == "today":
+            query = query.filter(Article.published_at >= now - timedelta(days=1))
+        elif date_range == "yesterday":
+            query = query.filter(
+                Article.published_at >= now - timedelta(days=2),
+                Article.published_at < now - timedelta(days=1)
+            )
+        elif date_range == "7days":
+            query = query.filter(Article.published_at >= now - timedelta(days=7))
+        elif date_range == "30days":
+            query = query.filter(Article.published_at >= now - timedelta(days=30))
+            
+    if start_date:
+        try:
+            if "T" in start_date:
+                dt_start = datetime.fromisoformat(start_date.split(".")[0].replace("Z", ""))
+            else:
+                dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(Article.published_at >= dt_start)
+        except Exception:
+            pass
+            
+    if end_date:
+        try:
+            if "T" in end_date:
+                dt_end = datetime.fromisoformat(end_date.split(".")[0].replace("Z", ""))
+            else:
+                dt_end = datetime.strptime(end_date, "%Y-%m-%d")
+            query = query.filter(Article.published_at <= dt_end)
+        except Exception:
+            pass
+            
+    return query
+
 @router.get("")
-def list_states(category: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def list_states(
+    category: Optional[str] = Query(None),
+    dateRange: Optional[str] = Query(None),
+    startDate: Optional[str] = Query(None),
+    endDate: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
     counts_query = db.query(Article.state, func.count(Article.id))
     if category:
         counts_query = counts_query.filter(Article.category == category)
+    counts_query = apply_date_filters(counts_query, dateRange, startDate, endDate)
     counts = counts_query.group_by(Article.state).all()
     counts_map = {state: count for state, count in counts if state}
     
@@ -63,6 +109,7 @@ def list_states(category: Optional[str] = Query(None), db: Session = Depends(get
         top_cat_query = db.query(Article.category, func.count(Article.id)).filter(Article.state == name)
         if category:
             top_cat_query = top_cat_query.filter(Article.category == category)
+        top_cat_query = apply_date_filters(top_cat_query, dateRange, startDate, endDate)
         top_cat_row = top_cat_query.group_by(Article.category)\
             .order_by(func.count(Article.id).desc())\
             .first()
@@ -72,6 +119,7 @@ def list_states(category: Optional[str] = Query(None), db: Session = Depends(get
         avg_sentiment_query = db.query(func.avg(Article.sentiment_score)).filter(Article.state == name)
         if category:
             avg_sentiment_query = avg_sentiment_query.filter(Article.category == category)
+        avg_sentiment_query = apply_date_filters(avg_sentiment_query, dateRange, startDate, endDate)
         avg_sentiment_row = avg_sentiment_query.first()
             
         sentiment_score = float(avg_sentiment_row[0]) if avg_sentiment_row and avg_sentiment_row[0] is not None else 0.0
@@ -84,6 +132,9 @@ def list_states(category: Optional[str] = Query(None), db: Session = Depends(get
             pos_query = pos_query.filter(Article.category == category)
             neg_query = neg_query.filter(Article.category == category)
             neu_query = neu_query.filter(Article.category == category)
+        pos_query = apply_date_filters(pos_query, dateRange, startDate, endDate)
+        neg_query = apply_date_filters(neg_query, dateRange, startDate, endDate)
+        neu_query = apply_date_filters(neu_query, dateRange, startDate, endDate)
             
         pos_count = pos_query.count()
         neg_count = neg_query.count()
@@ -102,6 +153,7 @@ def list_states(category: Optional[str] = Query(None), db: Session = Depends(get
         tags_query = db.query(Article.tags).filter(Article.state == name)
         if category:
             tags_query = tags_query.filter(Article.category == category)
+        tags_query = apply_date_filters(tags_query, dateRange, startDate, endDate)
         tags_rows = tags_query.all()
         
         tag_counts = {}
@@ -130,6 +182,7 @@ def list_states(category: Optional[str] = Query(None), db: Session = Depends(get
         })
         
     return states_list
+
 
 @router.get("/{slug}")
 def get_state(slug: str, db: Session = Depends(get_db)):

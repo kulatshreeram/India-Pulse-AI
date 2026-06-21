@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { MOCK_ARTICLES, CATEGORY_COLORS, CATEGORY_ICONS } from '@/lib/mock-data';
 import { formatRelativeTime, truncate } from '@/lib/utils';
+import { PersonalizedGrid } from '@/components/news/PersonalizedGrid';
+import type { NewsCategory } from '@/types';
 
 export const metadata: Metadata = {
   title: 'India Pulse AI — Real-Time Interactive News Intelligence Platform',
@@ -451,11 +453,11 @@ export default async function LandingPage() {
                 <div
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold mb-3"
                   style={{
-                    background: `${CATEGORY_COLORS[article.category]}20`,
-                    color: CATEGORY_COLORS[article.category],
+                    background: `${CATEGORY_COLORS[article.category as NewsCategory]}20`,
+                    color: CATEGORY_COLORS[article.category as NewsCategory],
                   }}
                 >
-                  <span>{CATEGORY_ICONS[article.category]}</span>
+                  <span>{CATEGORY_ICONS[article.category as NewsCategory]}</span>
                   {article.category.charAt(0).toUpperCase() + article.category.slice(1)}
                 </div>
                 <h3 className="text-sm font-semibold text-slate-100 leading-snug mb-2 group-hover:text-orange-400 transition-colors">
@@ -506,48 +508,10 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Latest Articles Preview */}
+      {/* Latest / Personalized Articles Preview */}
       <section className="py-12 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Latest from Across India</h2>
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: '#fb923c' }}
-            >
-              Explore map <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {latestArticles.map((article) => (
-              <Link
-                key={article.id}
-                href={`/news/${article.id}`}
-                className="group p-4 rounded-2xl transition-all duration-200"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                }}
-              >
-                <div
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold mb-2"
-                  style={{
-                    background: `${CATEGORY_COLORS[article.category]}20`,
-                    color: CATEGORY_COLORS[article.category],
-                  }}
-                >
-                  {CATEGORY_ICONS[article.category]} {article.category}
-                </div>
-                <h3 className="text-sm font-semibold text-slate-100 group-hover:text-orange-400 transition-colors leading-snug mb-2">
-                  {truncate(article.title, 100)}
-                </h3>
-                <p className="text-xs text-slate-600">
-                  {article.source.name} · {article.state} · {formatRelativeTime(article.publishedAt)}
-                </p>
-              </Link>
-            ))}
-          </div>
+          <PersonalizedGrid fallbackArticles={latestArticles} />
         </div>
       </section>
 

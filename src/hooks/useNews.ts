@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NewsFilter, NewsResponse, NewsArticle } from '@/types';
 import { MOCK_ARTICLES } from '@/lib/mock-data';
+import { useAppAuth } from '@/context/AuthContext';
 
 function filterArticles(articles: NewsArticle[], filters: NewsFilter): NewsArticle[] {
   let result = [...articles];
@@ -50,6 +51,9 @@ export function useNews(filters: NewsFilter = {}) {
       if (filters.category) params.append('category', filters.category);
       if (filters.state) params.append('state', filters.state);
       if (filters.search) params.append('q', filters.search);
+      if (filters.dateRange) params.append('dateRange', filters.dateRange);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.page) params.append('page', String(filters.page));
       if (filters.limit) params.append('limit', String(filters.limit));
 
@@ -95,12 +99,15 @@ export function useBreakingNews() {
   });
 }
 
-export function useStates(category?: string) {
+export function useStates(category?: string, filters: NewsFilter = {}) {
   return useQuery<any[]>({
-    queryKey: ['states', category],
+    queryKey: ['states', category, filters.dateRange, filters.startDate, filters.endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (category) params.append('category', category);
+      if (filters.dateRange) params.append('dateRange', filters.dateRange);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
       const url = `/api/states${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url);
       if (!res.ok) {
@@ -340,6 +347,95 @@ export function useTranslatedText(text: string | undefined, targetLang: 'en' | '
 
   return { translatedText, isLoading, error };
 }
+
+export function useUserPreferences() {
+  const { user } = useAppAuth();
+  return useQuery<string[]>({
+    queryKey: ['preferences', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const res = await fetch('/api/preferences', {
+        headers: { 'x-user-id': user.id }
+      });
+      if (!res.ok) throw new Error('Failed to fetch preferences');
+      const data = await res.json();
+      return data.interests || [];
+    },
+    enabled: !!user,
+  });
+}
+
+export function useSavePreferences() {
+  const { user, updateProfile } = useAppAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (interests: string[]) => {
+      if (!user) return;
+      await updateProfile(user.name, interests);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preferences', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['personalized-news', user?.id] });
+    }
+  });
+}
+
+export function useUserBookmarks() {
+  const { user } = useAppAuth();
+  return useQuery<NewsArticle[]>({
+    queryKey: ['bookmarks', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const res = await fetch('/api/bookmarks', {
+        headers: { 'x-user-id': user.id }
+      });
+      if (!res.ok) throw new Error('Failed to fetch bookmarks');
+      const data = await res.json();
+      return data.bookmarks || [];
+    },
+    enabled: !!user,
+  });
+}
+
+export function useToggleBookmark() {
+  const { user } = useAppAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (articleId: string) => {
+      if (!user) return;
+      const res = await fetch('/api/bookmarks/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ article_id: articleId })
+      });
+      if (!res.ok) throw new Error('Failed to toggle bookmark');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] });
+    }
+  });
+}
+
+export function usePersonalizedNews() {
+  const { user } = useAppAuth();
+  return useQuery<NewsResponse>({
+    queryKey: ['personalized-news', user?.id],
+    queryFn: async () => {
+      if (!user) return { status: 'ok', totalResults: 0, articles: [] };
+      const res = await fetch('/api/news/personalized', {
+        headers: { 'x-user-id': user.id }
+      });
+      if (!res.ok) throw new Error('Failed to fetch personalized news');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+}
+
 
 
 

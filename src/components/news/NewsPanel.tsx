@@ -14,10 +14,11 @@ import { ImpactScoreDisplay } from '@/components/ui/ImpactScore';
 import { SkeletonPanel } from '@/components/ui/Skeleton';
 import { formatDate, truncate } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
-import { useArticleSummary, useSimilarArticles, useNewsRecommendations, useTranslatedText } from '@/hooks/useNews';
+import { useArticleSummary, useSimilarArticles, useNewsRecommendations, useTranslatedText, useToggleBookmark } from '@/hooks/useNews';
 import { useTranslation } from '@/hooks/useTranslation';
 import { MOCK_ARTICLES } from '@/lib/mock-data';
 import type { NewsArticle } from '@/types';
+import { useAppAuth } from '@/context/AuthContext';
 
 export function NewsPanel() {
   const { 
@@ -31,6 +32,21 @@ export function NewsPanel() {
     addViewedArticle,
     setFilters
   } = useNewsStore();
+
+  const { user } = useAppAuth();
+  const toggleBookmarkMutation = useToggleBookmark();
+
+  const handleBookmarkToggle = async () => {
+    if (!selectedArticle) return;
+    toggleBookmark(selectedArticle.id);
+    if (user) {
+      try {
+        await toggleBookmarkMutation.mutateAsync(selectedArticle.id);
+      } catch (err) {
+        console.error("Failed to sync bookmark toggle:", err);
+      }
+    }
+  };
 
   const [clustersExpanded, setClustersExpanded] = useState(false);
 
@@ -96,7 +112,7 @@ export function NewsPanel() {
               <CategoryBadge category={selectedArticle.category} />
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => toggleBookmark(selectedArticle.id)}
+                  onClick={handleBookmarkToggle}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-saffron-400 hover:bg-white/5 transition-all"
                 >
                   {isBookmarked(selectedArticle.id)

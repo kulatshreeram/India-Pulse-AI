@@ -10,6 +10,7 @@ import { StateNewsPanel } from '@/components/news/StateNewsPanel';
 import { BreakingNewsTicker } from '@/components/layout/BreakingNewsTicker';
 import { MapControls } from '@/components/map/MapControls';
 import { SearchBar } from '@/components/map/SearchBar';
+import { TimelineSlider } from '@/components/map/TimelineSlider';
 import { useNews } from '@/hooks/useNews';
 import { useNewsStore } from '@/store/newsStore';
 import { Providers } from '@/components/Providers';
@@ -29,9 +30,16 @@ const MapWrapper = dynamic(() => import('@/components/map/MapWrapper'), {
 });
 
 function MapStats() {
-  const { filters } = useNewsStore();
+  const { filters, isReplayActive, replayTimestamp } = useNewsStore();
   const { data, isLoading, refetch } = useNews(filters);
   const { t } = useTranslation();
+
+  let articleCount = data?.totalResults ?? 0;
+  if (isReplayActive && replayTimestamp !== null && data?.articles) {
+    articleCount = data.articles.filter(
+      (a) => new Date(a.publishedAt).getTime() <= replayTimestamp
+    ).length;
+  }
 
   return (
     <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
@@ -48,7 +56,7 @@ function MapStats() {
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-semibold text-slate-200">
-            {isLoading ? '...' : data?.totalResults ?? 0} {t("Articles")}
+            {isLoading ? '...' : articleCount} {t("Articles")}
           </span>
         </div>
         <div className="w-px h-4 bg-white/10" />
@@ -75,6 +83,7 @@ function DashboardPageInner() {
         </div>
         <MapControls />
         <MapStats />
+        <TimelineSlider />
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

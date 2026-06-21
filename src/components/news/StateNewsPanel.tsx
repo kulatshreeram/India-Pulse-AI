@@ -11,7 +11,7 @@ import { getStateByName } from '@/lib/india-states';
 import { SkeletonCard, Skeleton } from '@/components/ui/Skeleton';
 
 export function StateNewsPanel() {
-  const { filters, setFilters, setSelectedArticle } = useNewsStore();
+  const { filters, setFilters, setSelectedArticle, isReplayActive, replayTimestamp } = useNewsStore();
   const stateName = filters.state;
   const [viewMode, setViewMode] = useState<'feed' | 'summary'>('feed');
   const { t, language } = useTranslation();
@@ -24,8 +24,19 @@ export function StateNewsPanel() {
     setFilters({ state: undefined });
   };
 
-  const { data, isLoading } = useNews({ state: stateName });
-  const articles = data?.articles ?? [];
+  const { data, isLoading } = useNews({
+    state: stateName,
+    category: filters.category,
+    dateRange: filters.dateRange,
+    startDate: filters.startDate,
+    endDate: filters.endDate
+  });
+  
+  let articles = data?.articles ?? [];
+  if (isReplayActive && replayTimestamp !== null) {
+    articles = articles.filter((a) => new Date(a.publishedAt).getTime() <= replayTimestamp);
+  }
+
   const stateInfo = stateName ? getStateByName(stateName) : undefined;
 
   const { data: summaryData, isLoading: isSummaryLoading, error: summaryError } = useStateSummary(

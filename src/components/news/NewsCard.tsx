@@ -7,6 +7,8 @@ import { CategoryBadge, SentimentBadge } from '@/components/ui/Badge';
 import { formatRelativeTime, truncate } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
 import type { NewsArticle } from '@/types';
+import { useAppAuth } from '@/context/AuthContext';
+import { useToggleBookmark } from '@/hooks/useNews';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -17,7 +19,21 @@ interface NewsCardProps {
 
 export function NewsCard({ article, onClick, compact = false, index = 0 }: NewsCardProps) {
   const { toggleBookmark, isBookmarked } = useNewsStore();
+  const { user } = useAppAuth();
+  const toggleBookmarkMutation = useToggleBookmark();
   const bookmarked = isBookmarked(article.id);
+
+  const handleBookmarkToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleBookmark(article.id);
+    if (user) {
+      try {
+        await toggleBookmarkMutation.mutateAsync(article.id);
+      } catch (err) {
+        console.error("Failed to sync bookmark toggle:", err);
+      }
+    }
+  };
 
   return (
     <motion.div
@@ -85,7 +101,7 @@ export function NewsCard({ article, onClick, compact = false, index = 0 }: NewsC
             </span>
           )}
           <button
-            onClick={(e) => { e.stopPropagation(); toggleBookmark(article.id); }}
+            onClick={handleBookmarkToggle}
             className="text-slate-600 hover:text-saffron-400 transition-colors"
           >
             {bookmarked

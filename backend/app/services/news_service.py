@@ -154,6 +154,169 @@ def classify_category(title: str, description: str, gnews_category: str = "gener
     }
     return gnews_map.get(gnews_category, "politics")
 
+def seed_historical_mock_articles(db: Session):
+    # Check if we already have seeded historical articles
+    if db.query(Article).count() > 40:
+        return
+        
+    print("Seeding database with historical articles spanning the last 30 days...")
+    
+    from backend.app.routes.states import STATES_METADATA
+    
+    categories = ["politics", "technology", "startups", "business", "sports", "entertainment", "science", "weather", "crime"]
+    
+    headlines_templates = {
+        "politics": [
+            "Election Commission Announces Assembly Poll Schedule for Later This Year",
+            "State Legislature Passes Landmark Infrastructure Finance Bill",
+            "Cabinet Approves Rural Connectivity and Smart Roads Scheme",
+            "Opposition Coalition Holds Major Rally Demanding Employment Reforms",
+            "Public Works Minister Promises Double-Decker Flyovers for Major Cities"
+        ],
+        "technology": [
+            "National Innovation Center Unveils Indigenous AI Large Language Model",
+            "Broadband Penetration Reaches 92% in Remote Mountain Villages",
+            "Electronics Hub Announces New Chip Assembly Facility",
+            "Software Giant Expands Regional R&D Office, Hiring 2000 Engineers",
+            "Cybersecurity Summit Warns of Growing Threat Vector on Utility Grids"
+        ],
+        "startups": [
+            "Electric Scooter Manufacturer Closes $80 Million Funding Round",
+            "Fintech App Gains 5 Million Active Users in Tier 2 and Tier 3 Cities",
+            "Agritech Platform Helps Smallholder Farmers Increase Yield by 25%",
+            "B2B SaaS Startup Achieves Unicorn Status After Mega Investment",
+            "Deeptech University Spin-off Secures Seed Capital for Carbon Capture"
+        ],
+        "business": [
+            "Special Economic Zone Attracts $500 Million FDI Commitments",
+            "Local Textile Exports Surge by 18% Under New Export Subsidy Policy",
+            "Retail Giants Announce Strategic Logistics Merger to Decongest Hubs",
+            "State Tourism Bureau Reports 40% Increase in International Bookings",
+            "Renewable Power Grid Crosses Critical 10 GW Transmission Peak"
+        ],
+        "sports": [
+            "National Games Conclude with Spectacular Closing Ceremony",
+            "Young Athlete Breaks National 100m Sprint Record in Selection Trials",
+            "Premier Football Club Announces Multi-Million Academy and Training Center",
+            "Traditional Kabaddi Championship Registers Record Television Viewership",
+            "Badminton Association Unveils Mega Coaching Infrastructure Plan"
+        ],
+        "entertainment": [
+            "Regional Cinema Blockbuster Crosses ₹200 Crore Box Office Milestone",
+            "International Literary Festival Begins with Prominent Authors Panel",
+            "State Cultural Department Organizes Folk Music and Dance Carnival",
+            "Indie Film wins Global Award, Highlighting Grassroots Conservation",
+            "Classic Theater Troupe Celebrates Golden Jubilee with Special Shows"
+        ],
+        "science": [
+            "Space Agency Successfully Launches Meteorological Research Satellite",
+            "Coastal Oceanography Center Detects Microplastics Mitigation Heuristic",
+            "Agriculture University Develops Drought-Resistant Rice Variety",
+            "Geological Survey Discovers Large Lithium Deposits in Rift Valley",
+            "Public Health Research Identifies Breakthrough Vector Control Solution"
+        ],
+        "weather": [
+            "Monsoon Rains Ease Reservoir Water Scarcity in Agricultural Hubs",
+            "State Issues Severe Heatwave Warning for Next 72 Hours",
+            "Heavy Torrential Rain Triggers Landslide Alerts in Hill Stations",
+            "Cyclonic Storm Weakens Into Deep Depression, Easing Coastal Fear",
+            "Dry Spell Prompts Water Conservation Guidelines for Rural Districts"
+        ],
+        "crime": [
+            "Cyber Police Bust Nationwide Phishing Syndicate, Arresting 12 Suspects",
+            "Stricter Enforcement Decreases Highway Cargo Theft by 30%",
+            "State Court Passes Landmark Verdict in Environmental Protection Case",
+            "Economic Offenses Wing Recovers ₹120 Crore in Financial Audit Scam",
+            "Local Patrol App Credited with Reducing Street Level Petty Crime"
+        ]
+    }
+    
+    sources = [
+        {"name": "NDTV", "url": "https://ndtv.com"},
+        {"name": "Times of India", "url": "https://timesofindia.com"},
+        {"name": "The Hindu", "url": "https://thehindu.com"},
+        {"name": "Economic Times", "url": "https://economictimes.com"},
+        {"name": "Indian Express", "url": "https://indianexpress.com"}
+    ]
+    
+    now = datetime.utcnow()
+    articles_to_seed = []
+    
+    # Spread dates over 30 days
+    offsets_pool = (
+        [0] * 12 +     # Today
+        [1] * 12 +     # Yesterday
+        [2, 3, 4, 5, 6] * 4 +  # Last 7 days
+        list(range(7, 30)) * 1  # Last 30 days
+    )
+    
+    from backend.app.routes.states import STATES_METADATA
+    states_pool = [s["name"] for s in STATES_METADATA]
+    
+    for idx, day_offset in enumerate(offsets_pool):
+        state = states_pool[idx % len(states_pool)]
+        category = categories[idx % len(categories)]
+        src = sources[idx % len(sources)]
+        
+        templates = headlines_templates.get(category, headlines_templates["politics"])
+        template = templates[idx % len(templates)]
+        
+        title = f"{state}: {template}"
+        desc = f"Latest developments in {state} under the {category} category. Local communities and leaders respond to the ongoing changes."
+        content = f"{title}. {desc} Detailed assessments show that this milestone has a broad impact on the public sector. Stakeholders are evaluating future steps."
+        
+        hour_offset = random.randint(0, 23)
+        minute_offset = random.randint(0, 59)
+        published_at = now - timedelta(days=day_offset, hours=hour_offset, minutes=minute_offset)
+        
+        coords = STATE_COORDINATES.get(state, {'lat': 20.0, 'lng': 78.0})
+        lat = coords['lat'] + random.uniform(-0.04, 0.04)
+        lng = coords['lng'] + random.uniform(-0.04, 0.04)
+        
+        sent_res = run_sentiment_analysis(title, desc)
+        extracted_kws = extract_keywords(title, desc)
+        tags_str = ", ".join([state, category.capitalize()] + extracted_kws)
+        
+        art_id = f"hist-{state.lower()[:3]}-{category[:3]}-{idx:03d}"
+        
+        articles_to_seed.append(
+            Article(
+                id=art_id,
+                title=title,
+                description=desc,
+                content=content,
+                summary=desc,
+                ai_summary=f"This is an AI summary of news in {state} regarding '{template}'. This falls under the {category} sector, with localized impact on transport, finance, or policy.",
+                source_name=src["name"],
+                source_url=src["url"],
+                category=category,
+                state=state,
+                city=None,
+                latitude=lat,
+                longitude=lng,
+                published_at=published_at,
+                image_url="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&auto=format&fit=crop&q=60",
+                url=f"https://{src['name'].lower().replace(' ', '')}.com/news/{art_id}",
+                sentiment=sent_res["sentiment"],
+                sentiment_score=sent_res["score"],
+                sentiment_positive=sent_res["positive"],
+                sentiment_negative=sent_res["negative"],
+                sentiment_neutral=sent_res["neutral"],
+                impact_local=random.randint(40, 85),
+                impact_state=random.randint(50, 90),
+                impact_national=random.randint(20, 60),
+                impact_global=random.randint(10, 30),
+                tags=tags_str,
+                is_breaking=random.random() < 0.1,
+                view_count=random.randint(50, 5000)
+            )
+        )
+        
+    for art in articles_to_seed:
+        db.add(art)
+    db.commit()
+    print(f"Seeded {len(articles_to_seed)} historical articles.")
+
 def seed_db_if_empty(db: Session):
     if db.query(Article).count() == 0:
         print("Seeding database with initial mock articles...")
@@ -189,6 +352,10 @@ def seed_db_if_empty(db: Session):
             db.add(db_art)
         db.commit()
         print("Database seeded successfully.")
+    
+    # Seed historical articles if missing
+    seed_historical_mock_articles(db)
+
 
 def generate_fallback_mock_articles(state_name: str, count: int = 5) -> list:
     """Generates realistic mock articles when the GNews API fails or is rate-limited."""
@@ -410,7 +577,17 @@ async def fetch_news_from_gnews(db: Session, query: str = "India", category: str
                 return mock_arts
             return []
 
-def get_news(db: Session, category: str = None, state: str = None, q: str = None, page: int = 1, limit: int = 50):
+def get_news(
+    db: Session,
+    category: str = None,
+    state: str = None,
+    q: str = None,
+    page: int = 1,
+    limit: int = 50,
+    date_range: str = None,
+    start_date: str = None,
+    end_date: str = None
+):
     query = db.query(Article)
     
     if category:
@@ -426,12 +603,48 @@ def get_news(db: Session, category: str = None, state: str = None, q: str = None
             )
         )
         
+    # Date range filtering
+    now = datetime.utcnow()
+    if date_range:
+        if date_range == "today":
+            query = query.filter(Article.published_at >= now - timedelta(days=1))
+        elif date_range == "yesterday":
+            query = query.filter(
+                Article.published_at >= now - timedelta(days=2),
+                Article.published_at < now - timedelta(days=1)
+            )
+        elif date_range == "7days":
+            query = query.filter(Article.published_at >= now - timedelta(days=7))
+        elif date_range == "30days":
+            query = query.filter(Article.published_at >= now - timedelta(days=30))
+            
+    if start_date:
+        try:
+            if "T" in start_date:
+                dt_start = datetime.fromisoformat(start_date.split(".")[0].replace("Z", ""))
+            else:
+                dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(Article.published_at >= dt_start)
+        except Exception as e:
+            print(f"Error parsing start_date '{start_date}': {e}")
+            
+    if end_date:
+        try:
+            if "T" in end_date:
+                dt_end = datetime.fromisoformat(end_date.split(".")[0].replace("Z", ""))
+            else:
+                dt_end = datetime.strptime(end_date, "%Y-%m-%d")
+            query = query.filter(Article.published_at <= dt_end)
+        except Exception as e:
+            print(f"Error parsing end_date '{end_date}': {e}")
+        
     query = query.order_by(Article.published_at.desc())
     
     total = query.count()
     articles = query.offset((page - 1) * limit).limit(limit).all()
     
     return articles, total
+
 
 def enrich_existing_articles(db: Session):
     # Find articles that need enrichment

@@ -1,16 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Map, Bot, BarChart3, Newspaper,
   Settings, User, Bell, Globe,
-  ChevronDown, Zap
+  ChevronDown, Zap, Bookmark, LogOut, LayoutDashboard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNewsStore } from '@/store/newsStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAppAuth } from '@/context/AuthContext';
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Live Map',  icon: Map      },
@@ -20,8 +22,18 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { language, setLanguage } = useNewsStore();
   const { t } = useTranslation();
+  const { user, isSignedIn, logout } = useAppAuth();
+  
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    setUserMenuOpen(false);
+    router.push('/');
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-14">
@@ -103,14 +115,88 @@ export function Navbar() {
             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-saffron-400" />
           </button>
 
-          <Link
-            href="/profile"
-            className="w-8 h-8 rounded-lg bg-gradient-to-br from-saffron-400/30 to-orange-600/30 flex items-center justify-center border border-saffron-400/20 hover:border-saffron-400/50 transition-all"
-          >
-            <User className="w-4 h-4 text-saffron-400" />
-          </Link>
+          {/* Authentication Section */}
+          {isSignedIn && user ? (
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-1.5 focus:outline-none"
+              >
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  className="w-8 h-8 rounded-full border border-saffron-400/20 object-cover"
+                />
+              </button>
+
+              <AnimatePresence>
+                {userMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-20"
+                      style={{
+                        background: 'rgba(15,23,42,0.98)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      <div className="px-4 py-3 border-b border-white/5">
+                        <p className="text-xs font-bold text-slate-200 truncate">{user.name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+                      </div>
+                      
+                      <div className="p-1">
+                        <Link
+                          href="/profile"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                          <User className="w-3.5 h-3.5 text-slate-500" />
+                          {t('Profile & Interests')}
+                        </Link>
+                        
+                        <Link
+                          href="/library"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                          <Bookmark className="w-3.5 h-3.5 text-slate-500" />
+                          {t('Research Library')}
+                        </Link>
+                      </div>
+                      
+                      <div className="p-1 border-t border-white/5">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          {t('Sign Out')}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-glow-sm"
+              style={{
+                background: 'linear-gradient(135deg, #fb923c, #f97316)',
+              }}
+            >
+              {t('Sign In')}
+            </Link>
+          )}
         </div>
       </div>
     </nav>
   );
 }
+

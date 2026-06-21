@@ -6,11 +6,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# We need to make sure the db tables are created and seeded on startup
 from backend.app.database.connection import engine, Base, SessionLocal, run_migrations
-from backend.app.routes import news, states, search, chat, analytics
+from backend.app.routes import news, states, search, chat, analytics, preferences, bookmarks
 import asyncio
-from backend.app.models.news import Article
+from backend.app.models.news import Article, UserPreference, Bookmark
 from backend.app.services.news_service import seed_db_if_empty, enrich_existing_articles
 from backend.vector_store.vector_db import get_vector_store
 
@@ -69,6 +68,9 @@ app.include_router(states.router, prefix="/api/states", tags=["States"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(preferences.router, prefix="/api/preferences", tags=["Preferences"])
+app.include_router(bookmarks.router, prefix="/api/bookmarks", tags=["Bookmarks"])
+
 
 @app.get("/")
 def read_root():

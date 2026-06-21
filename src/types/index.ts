@@ -66,7 +66,9 @@ export interface NewsFilter {
   category?: NewsCategory;
   state?: IndianState;
   sentiment?: Sentiment;
-  dateRange?: 'today' | 'yesterday' | '7days' | '30days';
+  dateRange?: 'today' | 'yesterday' | '7days' | '30days' | 'custom';
+  startDate?: string;
+  endDate?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -170,6 +172,7 @@ export interface TrendingTopic {
   topic: string;
   count: number;
   trend: 'rising' | 'falling' | 'stable';
+  growthRate?: string;
   category: NewsCategory;
   states: IndianState[];
 }

@@ -9,15 +9,16 @@ import {
 import { MOCK_ARTICLES, CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_LABELS } from '@/lib/mock-data';
 import { formatDate } from '@/lib/utils';
 import { ImpactScoreDisplay } from '@/components/ui/ImpactScore';
+import type { NewsCategory, NewsArticle } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-async function getArticleData(id: string) {
+async function getArticleData(id: string): Promise<NewsArticle | null> {
   // 1. Try backend
   try {
     const res = await fetch(`http://127.0.0.1:8000/api/news/${id}`, { next: { revalidate: 10 } });
     if (res.ok) {
-      return await res.json();
+      return await res.json() as NewsArticle;
     }
   } catch (e) {}
 
@@ -25,33 +26,7 @@ async function getArticleData(id: string) {
   const mockArt = MOCK_ARTICLES.find((a) => a.id === id);
   if (!mockArt) return null;
   
-  return {
-    id: mockArt.id,
-    title: mockArt.title,
-    description: mockArt.description,
-    summary: mockArt.summary,
-    aiSummary: mockArt.aiSummary,
-    category: mockArt.category,
-    state: mockArt.state,
-    city: mockArt.city,
-    publishedAt: mockArt.publishedAt,
-    imageUrl: mockArt.imageUrl,
-    sentiment: mockArt.sentiment,
-    sentimentScore: mockArt.sentimentScore,
-    isBreaking: mockArt.isBreaking,
-    viewCount: mockArt.viewCount,
-    source: {
-      name: mockArt.source.name,
-      url: mockArt.source.url
-    },
-    impactScore: {
-      local: mockArt.impactScore.local,
-      state: mockArt.impactScore.state,
-      national: mockArt.impactScore.national,
-      global: mockArt.impactScore.global
-    },
-    tags: mockArt.tags
-  };
+  return mockArt;
 }
 
 interface Props {
@@ -82,7 +57,7 @@ export default async function NewsArticlePage({ params }: Props) {
   const article = await getArticleData(id);
   if (!article) notFound();
 
-  let related = [];
+  let related: NewsArticle[] = [];
   try {
     const simRes = await fetch(`http://127.0.0.1:8000/api/news/${id}/similar`, { next: { revalidate: 10 } });
     if (simRes.ok) {
@@ -96,7 +71,7 @@ export default async function NewsArticlePage({ params }: Props) {
     ).slice(0, 3);
   }
 
-  const color = CATEGORY_COLORS[article.category];
+  const color = CATEGORY_COLORS[article.category as NewsCategory] || '#fb923c';
   const sentColor =
     article.sentiment === 'positive' ? '#10b981'
     : article.sentiment === 'negative' ? '#ef4444'
@@ -124,7 +99,7 @@ export default async function NewsArticlePage({ params }: Props) {
           className="px-2.5 py-1 rounded-lg text-xs font-semibold"
           style={{ background: `${color}20`, color }}
         >
-          {CATEGORY_ICONS[article.category]} {CATEGORY_LABELS[article.category]}
+          {CATEGORY_ICONS[article.category as NewsCategory]} {CATEGORY_LABELS[article.category as NewsCategory]}
         </span>
       </nav>
 
