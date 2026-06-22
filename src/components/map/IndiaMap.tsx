@@ -196,9 +196,7 @@ export default function IndiaMap() {
       .then((data) => setGeoJsonData(data))
       .catch((err) => console.error('Error loading GeoJSON:', err));
 
-    return () => {
-      setReady(false);
-    };
+    // No cleanup that sets ready=false — that would unmount MapContainer and cause the flash/disappear bug
   }, []);
 
   const getFeatureStyle = (feature: any) => {

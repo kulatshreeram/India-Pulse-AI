@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/search',    label: 'Search',    icon: Search    },
   { href: '/compare',   label: 'Compare',   icon: GitCompare },
+  { href: '/reports',   label: 'Reports',   icon: LayoutDashboard },
 ];
 
 export function Navbar() {

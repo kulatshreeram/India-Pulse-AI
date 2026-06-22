@@ -7,6 +7,7 @@ from backend.app.database.connection import get_db
 from backend.app.models.news import Article, ArticleSummary
 from backend.app.schemas.news import NewsArticleSchema, article_db_to_schema, ArticleSummarySchema
 from backend.app.services import news_service, ai_summary
+from backend.app.cache import news_cache, make_key
 
 router = APIRouter()
 
@@ -19,9 +20,16 @@ async def list_news(
     startDate: Optional[str] = Query(None),
     endDate: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db)
 ):
+    # Check cache first (skip for user-specific or search queries)
+    if not q:
+        cache_key = make_key("news", category, state, dateRange, startDate, endDate, page, limit)
+        cached = news_cache.get(cache_key)
+        if cached:
+            return cached
+
     # Translate query if it is in Devanagari
     if q and any(ord(char) >= 0x0900 and ord(char) <= 0x097F for char in q):
         from backend.app.services.translation import translate_text
@@ -31,21 +39,25 @@ async def list_news(
         db, category, state, q, page, limit, dateRange, startDate, endDate
     )
 
-    
     # Trigger GNews pull on-demand if there are no cached articles for this state
     if state and len(articles) == 0:
         print(f"No cached articles for state '{state}'. Fetching from GNews...")
         await news_service.fetch_news_from_gnews(db, query=f"{state} India", state_name=state)
-        # Re-query
         articles, total = news_service.get_news(db, category, state, q, page, limit)
-        
+
     serialized = [article_db_to_schema(a) for a in articles]
-    
-    return {
+
+    result = {
         "status": "ok",
         "totalResults": total,
         "articles": serialized
     }
+
+    # Store in cache (only for non-search requests)
+    if not q:
+        news_cache.set(cache_key, result)
+
+    return result
 
 @router.get("/clustered", response_model=dict)
 def get_clustered_news(

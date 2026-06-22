@@ -48,8 +48,12 @@ const config: Config = {
           '50%':      { transform: 'translateY(-10px)' },
         },
         'ticker': {
-          '0%':   { transform: 'translateX(100%)' },
-          '100%': { transform: 'translateX(-100%)' },
+          '0%':   { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        'marquee': {
+          '0%':   { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
         },
         'glow-pulse': {
           '0%, 100%': { boxShadow: '0 0 5px rgba(251,146,60,0.4)' },
@@ -71,7 +75,8 @@ const config: Config = {
       animation: {
         'pulse-ring':     'pulse-ring 2s ease-out infinite',
         'float':          'float 3s ease-in-out infinite',
-        'ticker':         'ticker 30s linear infinite',
+        'ticker':         'ticker 20s linear infinite',
+        'marquee':        'marquee 20s linear infinite',
         'glow-pulse':     'glow-pulse 2s ease-in-out infinite',
         'slide-in-right': 'slide-in-right 0.3s ease-out',
         'fade-in-up':     'fade-in-up 0.4s ease-out',
