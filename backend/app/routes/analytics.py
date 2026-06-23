@@ -8,18 +8,27 @@ from collections import Counter, defaultdict
 
 from backend.app.database.connection import get_db
 from backend.app.models.news import Article
+from backend.app.cache import analytics_cache, make_key
 
 router = APIRouter()
 
+ANALYTICS_CACHE_KEY = make_key("analytics", "global")
+
 @router.get("")
 def get_analytics_data(db: Session = Depends(get_db)):
+    # Check cache first (60s TTL — analytics aggregations are expensive)
+    cached = analytics_cache.get(ANALYTICS_CACHE_KEY)
+    if cached:
+        return cached
+
     # 1. Total Counts
     total_articles = db.query(Article).count()
     total_states = db.query(Article.state).filter(Article.state.isnot(None), Article.state != "").distinct().count()
     total_categories = db.query(Article.category).filter(Article.category.isnot(None), Article.category != "").distinct().count()
-    
+
     # Count AI summaries generated
     total_ai_summaries = db.query(Article).filter(Article.ai_summary.isnot(None), Article.ai_summary != "").count()
+
 
     # 2. Trending Topics (Word frequency analysis from tags column)
     tags_query = db.query(Article.tags, Article.category, Article.state).all()
@@ -309,7 +318,7 @@ def get_analytics_data(db: Session = Depends(get_db)):
             "mood": mood
         })
 
-    return {
+    result = {
         "totalArticles": total_articles if total_articles > 0 else 120,
         "totalStates": total_states if total_states > 0 else 24,
         "totalCategories": total_categories if total_categories > 0 else 12,
@@ -322,3 +331,5 @@ def get_analytics_data(db: Session = Depends(get_db)):
         "categorySentiment": category_sentiment,
         "newsMoods": news_moods
     }
+    analytics_cache.set(ANALYTICS_CACHE_KEY, result)
+    return result

@@ -12,6 +12,8 @@ import asyncio
 from backend.app.models.news import Article, UserPreference, Bookmark
 from backend.app.services.news_service import seed_db_if_empty, enrich_existing_articles
 from backend.vector_store.vector_db import get_vector_store
+from backend.app.middleware.rate_limit import RateLimitMiddleware
+from backend.app.middleware.logging import RequestLoggingMiddleware
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -51,12 +53,25 @@ try:
 finally:
     db.close()
 
-app = FastAPI(title="India Pulse AI API", version="0.1.0")
+app = FastAPI(
+    title="India Pulse AI API",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+)
 
-# Allow CORS for Next.js frontend calls during dev
+# Determine allowed origins (lock down in production)
+_allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
+# Register middleware (order matters — outermost first)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

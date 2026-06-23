@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Index
 from backend.app.database.connection import Base
 
 class Article(Base):
@@ -45,8 +45,16 @@ class Article(Base):
     
     is_breaking = Column(Boolean, default=False)
     view_count = Column(Integer, default=0)
-    
+
     fetched_at = Column(DateTime, default=datetime.utcnow)
+
+    # ── Composite indexes for common multi-filter queries ──────────────────────
+    __table_args__ = (
+        Index('ix_articles_state_category',     'state', 'category'),
+        Index('ix_articles_state_published_at', 'state', 'published_at'),
+        Index('ix_articles_category_published', 'category', 'published_at'),
+        Index('ix_articles_breaking_published', 'is_breaking', 'published_at'),
+    )
 
 class ArticleSummary(Base):
     __tablename__ = "article_summaries"

@@ -1,157 +1,224 @@
-# ⚡ India Pulse AI
+<div align="center">
 
-> Real-time AI-powered news intelligence platform for India. Explore geo-tagged news on an interactive map, get automated AI summaries, analyze regional sentiment, and search regional events across all 28 states.
+# 🇮🇳 India Pulse AI
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=flat-square&logo=fastapi)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-38B2AC?style=flat-square&logo=tailwind-css)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+### Real-Time AI-Powered News Intelligence for India
+
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+
+> An interactive geospatial news platform that combines real-time data collection, AI-powered summaries, semantic search (RAG), sentiment analysis, and an AI research assistant — visualized on a live map of India.
+
+**[Live Demo](https://india-pulse-ai.vercel.app)** · **[API Docs](https://your-backend.railway.app/api/docs)** · **[Report Bug](https://github.com/kulatshreeram/India-Pulse-AI/issues)**
+
+</div>
 
 ---
 
-## 🗺️ Interactive Live Demo Preview
+## ✨ Features
 
-Users visiting the platform can:
-- **Explore the India Map**: Hover over state boundaries to view live story counts, click states to display local articles, and toggle **Heatmap Mode** to color-code states by news density.
-- **Search Topics & States**: Instantly filter articles by state names, news headlines, and categories.
-- **Read AI Insights**: View detailed side panels with local-to-global impact metrics, category badges, sentiment scales, and AI summaries.
+| Category | Features |
+|---|---|
+| 🗺️ **Interactive Map** | Click-to-explore India map with news markers, heatmap mode, clustering, GeoJSON state overlays |
+| 📰 **News Intelligence** | Real-time collection, AI summaries (Gemini/OpenAI), sentiment analysis, breaking news detection |
+| 🤖 **AI Research Assistant** | Multi-mode chatbot with Daily Briefing, Weekly Reports, State Reports, Topic Analysis, Trend Explanation |
+| 📊 **Analytics Dashboard** | Trending topics, sentiment charts, state activity, category breakdowns, timeline explorer |
+| 🔍 **Advanced Search** | Semantic search (RAG with ChromaDB), fuzzy matching, state/category/date filters, search history |
+| 🔔 **Notifications** | Real-time breaking news alerts, in-app notification center |
+| 📈 **Report Generation** | Export AI reports as Markdown, TXT, JSON, CSV, or Print-to-PDF |
+| 🌐 **Multilingual** | English, Hindi (हिंदी), Marathi (मराठी) UI + AI responses |
+| 📱 **Mobile-First** | Responsive design, hamburger nav drawer, touch-optimized map |
+| ⚖️ **State Comparison** | Side-by-side comparison of news volume, sentiment, categories across states |
 
 ---
 
-## 🚀 Architecture Diagram
+## 🏗️ Architecture
 
 ```mermaid
-graph TD
-    subgraph NextJS [Next.js Frontend]
-        UI[UI Components - React & Framer Motion]
-        Map[Interactive India Map - Leaflet]
-        Store[Zustand News Store - Client State]
-        RQ[TanStack Query - Data Caching]
-        Proxy[Next.js API Routes Proxy]
+graph TB
+    subgraph Frontend ["🌐 Next.js 15 Frontend (Vercel)"]
+        A[Interactive India Map<br/>react-leaflet + GeoJSON]
+        B[AI Research Assistant<br/>react-markdown + streaming]
+        C[Analytics Dashboard<br/>recharts]
+        D[Reports Page<br/>PDF/CSV/JSON export]
+        E[Advanced Search<br/>RAG-powered]
     end
 
-    subgraph BackendAPI [FastAPI Server]
-        FastAPI[FastAPI Endpoints]
-        ORM[SQLAlchemy ORM]
-        Service[News Aggregation Service]
+    subgraph Backend ["⚙️ FastAPI Backend (Railway)"]
+        F[News API /api/news]
+        G[Chat API /api/chat]
+        H[Analytics API /api/analytics]
+        I[Reports API /api/reports]
+        J[Search API /api/search]
+        K[Rate Limiter<br/>Token Bucket]
+        L[LRU Cache<br/>60s TTL]
     end
 
-    subgraph Storage [Database Layer]
-        SQLite[(Local SQLite - Dev)]
-        PostgreSQL[(Neon PostgreSQL - Prod)]
+    subgraph AI ["🤖 AI Layer"]
+        M[Gemini 1.5 Flash<br/>Summaries + Chat]
+        N[ChromaDB<br/>Vector Store]
+        O[Sentence Embeddings<br/>all-MiniLM-L6-v2]
     end
 
-    subgraph External [External Integration]
-        GNews[GNews API]
-        Fallback[Local News Seed Generator - 429 Fallback]
+    subgraph Data ["💾 Data Layer"]
+        P[SQLite → PostgreSQL<br/>SQLAlchemy ORM]
+        Q[GNews API<br/>Real-time articles]
     end
 
-    UI --> Store
-    UI --> Map
-    Map --> RQ
-    RQ --> Proxy
-    Proxy --> FastAPI
-    FastAPI --> ORM
-    ORM --> SQLite
-    ORM --> PostgreSQL
-    FastAPI --> Service
-    Service --> GNews
-    Service -.->|API Rate Limit 429| Fallback
+    A & B & C & D & E -->|HTTP + Cache-Control| F & G & H & I & J
+    F & G & H & I & J --> K --> L --> P
+    G --> N --> O
+    G & I --> M
+    Q -->|Scheduled fetch| P
 ```
 
 ---
 
-## ✨ Features List
+## 🚀 Quick Start
 
-- **Interactive Map of India**: Styled with dark glassmorphism overlays and custom map tooltips displaying real-time state counts (e.g. `Maharashtra (15)`).
-- **Resilient Backend Caching**: Mitigates GNews API rate limiting by dynamically storing articles in SQLite/PostgreSQL. If the API hits a `429 Too Many Requests` error, a local news seeder automatically generates realistic regional articles on-the-fly.
-- **Category Filter Tabs**: Instantly filter news by `Politics`, `Technology`, `Startups`, `Business`, `Sports`, `Entertainment`, `Health`, `Weather`, and more.
-- **Unified Global Search**: Autocomplete search that queries both articles and state metadata in a single roundtrip.
-- **AI Summary Panel**: Sliding drawer showing sentiment score graphs, local/state/national/global impact scales, and a GPT-style AI summary.
-- **Responsive Layout**: Designed for mobile, tablet, and desktop screens with interactive touch-targets and spring-based drawer animations.
+### Prerequisites
+- Node.js 20+ and npm
+- Python 3.10+
+- API keys: [GNews](https://gnews.io/) and [Google AI Studio (Gemini)](https://aistudio.google.com/) or [OpenAI](https://platform.openai.com/)
 
----
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Zustand, TanStack React Query v5, Framer Motion.
-- **Mapping**: Leaflet.js, React Leaflet, Leaflet MarkerCluster.
-- **Backend**: FastAPI (Python 3.11+), SQLAlchemy ORM, Pydantic v2.
-- **Database**: SQLite (local development), PostgreSQL / Neon DB (production).
-- **Deployment**: Vercel (Frontend), Render / Railway (Backend).
-
----
-
-## ⚙️ Installation & Local Setup
-
-### 1. Clone the Repository
+### 1. Clone the repository
 ```bash
 git clone https://github.com/kulatshreeram/India-Pulse-AI.git
 cd India-Pulse-AI
 ```
 
-### 2. Configure Environment Variables
-
-**Frontend (`.env.local`)**:
-```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-**Backend (`backend/.env`)**:
-```env
-GNEWS_API_KEY=your_gnews_api_key_here
-DATABASE_URL=sqlite:///./india_pulse.db
-```
-
-### 3. Run FastAPI Backend
-Ensure Python 3.11+ is installed, then:
+### 2. Configure environment variables
 ```bash
-cd backend
-python -m venv .venv
-# Activate virtual environment
-# On Windows:
-.venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+cp .env.local.example .env.local
+# Edit .env.local and fill in your API keys
 ```
-*Note: The database is automatically created and seeded with mock regional articles on first run.*
 
-### 4. Run Next.js Frontend
-Open a new terminal window in the root directory:
+### 3. Install frontend dependencies
 ```bash
 npm install
+```
+
+### 4. Install backend dependencies
+```bash
+cd backend
+pip install -r requirements.txt
+cd ..
+```
+
+### 5. Start both servers
+
+**Terminal 1 — Backend (FastAPI):**
+```bash
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+**Terminal 2 — Frontend (Next.js):**
+```bash
 npm run dev
 ```
-Explore the application at `http://localhost:3000`.
+
+Open [http://localhost:3000](http://localhost:3000) 🎉
 
 ---
 
-## 🌐 Deployment Plan
+## ⚙️ Environment Variables
 
-### Database Setup (Neon PostgreSQL)
-1. Sign up on [Neon.tech](https://neon.tech/) and create a PostgreSQL database.
-2. Copy the Connection String.
-3. Add `DATABASE_URL` to the backend deployment environment variables. The connection module automatically handles scheme rewriting from `postgres://` to `postgresql://`.
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | ✅ | Google Gemini API key for AI summaries |
+| `OPENAI_API_KEY` | Optional | OpenAI fallback for AI chat |
+| `GNEWS_API_KEY` | ✅ | GNews API key for real-time articles |
+| `DATABASE_URL` | Optional | PostgreSQL URL (defaults to SQLite) |
+| `ALLOWED_ORIGINS` | Prod only | Comma-separated allowed CORS origins |
+| `NEXT_PUBLIC_APP_URL` | Optional | Your frontend URL for SEO metadata |
 
-### Backend Deployment (Render or Railway)
-1. Create a new Web Service pointing to your GitHub repository.
-2. Set the build command to `pip install -r backend/requirements.txt` (or configure root directory as `/backend`).
-3. Set the start command to `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`.
-4. Configure environment variables:
-   - `DATABASE_URL`: Your production Neon DB connection string.
-   - `GNEWS_API_KEY`: Your GNews token.
+---
 
-### Frontend Deployment (Vercel)
-1. Import the repository on Vercel.
-2. Set Framework Preset to **Next.js**.
-3. In settings, add Next.js API rewrites or configure the API route handlers to point to the production backend URL (e.g. update `backendUrl` in `src/app/api/.../route.ts` to reference the backend domain).
+## 📁 Project Structure
+
+```
+India-Pulse-AI/
+├── src/                          # Next.js frontend
+│   ├── app/                      # App Router pages
+│   │   ├── dashboard/            # Interactive map page
+│   │   ├── assistant/            # AI research assistant
+│   │   ├── analytics/            # Analytics dashboard
+│   │   ├── search/               # Advanced search
+│   │   ├── compare/              # State comparison
+│   │   ├── reports/              # Report generation
+│   │   └── api/                  # Next.js API proxies
+│   ├── components/               # Reusable components
+│   │   ├── map/                  # Leaflet map components
+│   │   ├── news/                 # News panels & cards
+│   │   ├── layout/               # Navbar, MobileNav
+│   │   ├── notifications/        # Notification center
+│   │   └── onboarding/           # First-visit tour
+│   ├── hooks/                    # React custom hooks
+│   ├── store/                    # Zustand state stores
+│   └── types/                    # TypeScript definitions
+│
+├── backend/                      # FastAPI backend
+│   ├── app/
+│   │   ├── routes/               # API endpoint handlers
+│   │   ├── models/               # SQLAlchemy ORM models
+│   │   ├── services/             # AI, news fetching logic
+│   │   ├── middleware/           # Rate limiting, logging
+│   │   └── cache.py              # In-memory LRU cache
+│   └── vector_store/             # ChromaDB RAG pipeline
+│
+├── public/
+│   └── india-states.geojson      # India state boundaries
+│
+└── docs/                         # Architecture & API docs
+```
+
+---
+
+## 🛠️ Tech Stack
+
+**Frontend**
+- [Next.js 15](https://nextjs.org/) — App Router, Server Components
+- [TypeScript](https://www.typescriptlang.org/) — Full type safety
+- [React Leaflet](https://react-leaflet.js.org/) — Interactive map
+- [Recharts](https://recharts.org/) — Analytics charts
+- [Framer Motion](https://www.framer.com/motion/) — Animations
+- [Zustand](https://zustand-demo.pmnd.rs/) — State management
+- [TanStack Query](https://tanstack.com/query) — Server state & caching
+- [Tailwind CSS](https://tailwindcss.com/) — Styling
+
+**Backend**
+- [FastAPI](https://fastapi.tiangolo.com/) — Async Python API
+- [SQLAlchemy](https://www.sqlalchemy.org/) — ORM + migrations
+- [ChromaDB](https://www.trychroma.com/) — Vector database (RAG)
+- [Google Gemini](https://ai.google.dev/) — AI summaries & chat
+- [GNews API](https://gnews.io/) — Real-time news articles
+- [Sentence Transformers](https://www.sbert.net/) — Embeddings
+
+---
+
+## 📖 Documentation
+
+- [Architecture Guide](docs/ARCHITECTURE.md)
+- [API Reference](docs/API.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome! For major changes, please open an issue first.
+
+```bash
+git checkout -b feature/your-feature
+git commit -m "feat: describe your feature"
+git push origin feature/your-feature
+```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+[MIT](LICENSE) © 2024 India Pulse AI

@@ -13,6 +13,7 @@ import { TimelineSlider } from '@/components/map/TimelineSlider';
 import { useNews } from '@/hooks/useNews';
 import { useNewsStore } from '@/store/newsStore';
 import { Providers } from '@/components/Providers';
+import { OnboardingOverlay } from '@/components/onboarding/OnboardingOverlay';
 import { Layers, RefreshCw } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -148,6 +149,7 @@ export function DashboardPageClient() {
         <SearchParamInitializer />
       </Suspense>
       <DashboardPageInner />
+      <OnboardingOverlay />
     </Providers>
   );
 }
